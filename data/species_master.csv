@@ -1,0 +1,277 @@
+common_name,scientific_name,category,length_to_measure,smith_no,log_a,b,edible
+Angelshark,Squatina africana,Sharks,Total length,21.1,-11.35134983,2.933115959,N
+Catshark (Banded),Halaelurus lineatus,Sharks,Total length,11.5,-12.89350986,3.048912048,N
+Catshark (Leopard),Poroderma pantherinum,Sharks,Total length,11.15,-11.73612022,2.920005083,N
+Catshark (Striped),Poroderma africanum,Sharks,Total length,11.13,-11.90907001,2.958318949,N
+Catshark (Tiger),Halaelurus natalensis,Sharks,Total length,11.7,-12.89350986,3.048912048,N
+Dogfish (Spiny),Squalus acanthias,Sharks,Total length,5.24,-13.43025495,3.219990589,N
+Shark (Blackfin Reef),Carcharhinus melanopterus,Sharks,Pre-caudal length,9.13,-11.34669971,3.049860954,N
+Shark (Blackspot),Carcharhinus sealei,Sharks,Pre-caudal length,9.16,-12.17357651,3.233331686,N
+Shark (Blacktip) (F),Carcharhinus limbatus,Sharks,Pre-caudal length,9.1,-11.43505001,3.079823017,N
+Shark (Blacktip) (M),Carcharhinus limbatus,Sharks,Pre-caudal length,9.1,-11.34669971,3.049860954,N
+Shark (Blue) (F),Prionace glauca,Sharks,Total length,9.32,-13.80794411,3.41,N
+Shark (Blue) (M),Prionace glauca,Sharks,Total length,9.32,-13.0849664,3.2,N
+Shark (Bull) (F),Carcharhinus leucas,Sharks,Pre-caudal length,9.9,-10.76966953,2.979747057,N
+Shark (Bull) (M),Carcharhinus leucas,Sharks,Pre-caudal length,9.9,-10.54288006,2.929411888,N
+Shark (Copper / Bronze) (F),Carcharhinus brachyurus,Sharks,Pre-caudal length,9.5,-11.91701984,3.140988111,N
+Shark (Copper / Bronze) (M),Carcharhinus brachyurus,Sharks,Pre-caudal length,9.5,-11.80140018,3.109893084,N
+Shark (Cow) (Sevengill),Notorynchus cepedianus,Sharks,Pre-caudal length,2.4,-12.62215996,3.280111074,N
+Shark (Dusky),Carcharhinus obscurus,Sharks,Pre-caudal length,9.14,-11.3801071,3.0499923,N
+Shark (Flapnose Hound),Scylliogaleus quecketti,Sharks,Total length,9.34,-12.66267014,3.063977003,N
+Shark (Great Hammerhead),Sphyrna mokarran,Sharks,Pre-caudal length,13.2,-10.97926044,2.944046974,N
+Shark (Great White),Carcharodon carcharias,Sharks,Pre-caudal length,14.1,-10.75166035,2.94391489,N
+Shark (Hardnosed Smooth-hound,Mustelus mosis,Sharks,Total length,9.26,-14.8193903,3.5015769,N
+Shark (Hound) (Smooth) (F),Mustelus mustelus,Sharks,Total length,9.27,-14.8193903,3.5015769,N
+Shark (Hound) (Smooth) (M),Mustelus mustelus,Sharks,Total length,9.27,-13.38910007,3.189629078,N
+Shark (Java),Carcharhinus amboinensis,Sharks,Pre-caudal length,9.4,-10.43056965,2.930546999,N
+Shark (Lemon),Negaprion acutidens,Sharks,Pre-caudal length,9.29,-10.9772907,3.003881802,N
+Shark (Milk) (F),Rhizoprionodon acutus,Sharks,Pre-caudal length,9.33,-11.72862571,3.056938858,N
+Shark (Milk) (M),Rhizoprionodon acutus,Sharks,Pre-caudal length,9.33,-11.72862571,3.056938858,N
+Shark (Sandbar) (F),Carcharhinus plumbeus,Sharks,Pre-caudal length,9.15,-11.77966022,3.170077085,N
+Shark (Sandbar) (M),Carcharhinus plumbeus,Sharks,Pre-caudal length,9.15,-11.48738956,3.090497971,N
+Shark (Scalloped Hammerhead) (F),Sphyrna lewini,Sharks,Pre-caudal length,13.1,-11.5104599,3.069519997,N
+Shark (Scalloped Hammerhead) (M),Sphyrna lewini,Sharks,Pre-caudal length,13.1,-11.10394955,2.979325056,N
+Shark (Shortfin Mako),Isurus oxyrinchus,Sharks,Pre-caudal length,14.2,-11.12766306,2.98,N
+Shark (Smooth Hammerhead) (F),Sphyrna zygaena,Sharks,Pre-caudal length,13.3,-11.61642856,3.085366633,N
+Shark (Smooth Hammerhead) (M),Sphyrna zygaena,Sharks,Pre-caudal length,13.3,-11.21096346,2.995366633,N
+Shark (Soupfin),Galeorhinus galeus,Sharks,Pre-caudal length,9.2,-8.310648918,2.319703102,N
+Shark (Spinner) (F),Carcharhinus brevipinna,Sharks,Pre-caudal length,9.6,-11.83144205,3.1627,N
+Shark (Spinner) (M),Carcharhinus brevipinna,Sharks,Pre-caudal length,9.6,-11.64463785,3.0977,N
+Shark (Spotted Gully),Triakis megalopterus,Sharks,Total length,9.36,-14.33193016,3.430449963,N
+Shark (Spotted Ragged-tooth) (F),Carcharias taurus,Sharks,Pre-caudal length,19.1,-12.01518538,3.217362935,N
+Shark (Spotted Ragged-tooth) (M),Carcharias taurus,Sharks,Pre-caudal length,19.1,-11.41074324,3.078114933,N
+Shark (Tiger) (F),Galeocerdo cuvier,Sharks,Pre-caudal length,9.19,-11.86960041,3.124,N
+Shark (Tiger) (M),Galeocerdo cuvier,Sharks,Pre-caudal length,9.19,-12.02375109,3.141,N
+Shark (Whitespotted Smooth-hound),Mustelus palumbes,Sharks,Total length,9.28,-14.8193903,3.5015769,N
+Shyshark (Brown),Haploblepharus fuscus,Sharks,Total length,11.9,-12.68410845,3.0172,N
+Thresher (Bigeye),Alopias superciliosus,Sharks,Pre-caudal length,16.2,-10.03355026,2.856935024,N
+Thresher (Thintail),Alopias vulpinus,Sharks,Pre-caudal length,16.3,-10.03355026,2.856935024,N
+Guitarfish (Bluntnose),Rhinobatos blochii,Rays and Guitarfishes,Total length,27.3,-12.02099466,2.869810939,N
+Guitarfish (Giant),Rhynchobatus djiddensis,Rays and Guitarfishes,Total length,27.7,-12.15007973,3.011601925,N
+Guitarfish (Greyspot),Rhinobatos leucospilus,Rays and Guitarfishes,Total length,27.5,-10.72929955,2.561811924,N
+Guitarfish (Lesser),Rhinobatos annulatus,Rays and Guitarfishes,Total length,27.2,-13.31268978,3.177809954,N
+Ray (Blacspotted Electric),Torpedo fuscomaculata,Rays and Guitarfishes,Disc width,23.1,-9.804895401,2.807568073,N
+Ray (Bull) / Duckbill,Pteromylaeus bovinus,Rays and Guitarfishes,Disc width,28.3,-9.487839699,2.670084953,N
+Ray (Butterfly / Diamond),Gymnura natalensis,Rays and Guitarfishes,Disc width,30.7,-11.79977989,3.03984499,N
+Ray (Eagle),Myliobatus aquila,Rays and Guitarfishes,Disc width,28.2,-11.16779041,3.059699059,N
+Ray (Flapnose),Rhinoptera javanica,Rays and Guitarfishes,Disc width,28.4,-11.59589005,3.138524055,N
+Ray (Marbled Electric),Torpedo sinuspersici,Rays and Guitarfishes,Disc width,23.3,-9.804895401,2.807568073,N
+Ray (Ribbontail) (Round),Taeniura melanospilos,Rays and Guitarfishes,Disc width,30.14,-9.153886795,2.712804079,N
+Ray (Spotted Eagle),Aetobatus narinari,Rays and Guitarfishes,Disc width,28.1,-12.04735391,3.129998498,N
+Ribbontail (Bluespotted),Taeniura lymma,Rays and Guitarfishes,Disc width,30.13,-9.153886795,2.712804079,N
+Skate (Spearnose),Raja alba,Rays and Guitarfishes,Disc width,25.6,-12.37351036,3.160566092,N
+Skate (Thornback),Raja clavata,Rays and Guitarfishes,Disc width,25.8,-10.88177013,3.004992962,N
+Stingray (Blue) (F),Dasyatis chrysonota chrysonota,Rays and Guitarfishes,Disc width,30.3,-11.04084969,3.251389027,N
+Stingray (Blue) (M),Dasyatis chrysonota chrysonota,Rays and Guitarfishes,Disc width,30.3,-11.08378029,3.185832024,N
+Stingray (Brown Sharpnose),Himantura gerrardi,Rays and Guitarfishes,Disc width,30.9,-9.317486763,2.750916004,N
+Stingray (Devil),Himantura draco,Rays and Guitarfishes,Disc width,30.8,-9.235686779,2.731860042,N
+Stingray (Honeycomb),Himantura uarnak,Rays and Guitarfishes,Disc width,30.1,-9.153886795,2.712804079,N
+Stingray (Roundnose),Himantura sp.,Rays and Guitarfishes,Disc width,30.11,-9.235686779,2.731860042,N
+Stingray (Short-tail),Dasyatis brevicaudata,Rays and Guitarfishes,Disc width,30.1,-9.654700279,2.870229959,N
+Stingray (Thorntail),Dasyatis thetidis,Rays and Guitarfishes,Disc width,30.4,-10.80140972,2.99932909,N
+Albacore,Thunnus alalunga,Bony Fishes,Fork length,249.14,-11.19678266,3.097296052,Y
+Baardman,Umbrina robinsoni,Bony Fishes,Total length,199.8,-11.4194509,3.0204,Y
+Baardman (Slender),Umbrina  ronchus,Bony Fishes,Total length,199.9,-11.66965008,3.14411807,Y
+Barracuda (Great),Sphyraena barracuda,Bony Fishes,Fork length,224.3,-11.69070725,2.913470549,Y
+Barracuda (Pickhandle),Sphyraena jello,Bony Fishes,Fork length,224.7,-11.17506027,2.809709072,Y
+Barracuda (Sawtooth),Sphyraena putnamae,Bony Fishes,Fork length,224.9,-11.7953777,2.930708535,Y
+Barrracuda (Blackfin),Sphyraena qenie,Bony Fishes,Fork length,224.1,-12.10168377,2.999994039,Y
+Bass (Brindle),Epinephelus lanceolatus,Bony Fishes,Total length,166.45,-10.96440029,2.999917984,Y
+Bass (Potato),Epinephelus tukula,Bony Fishes,Total length,166.66,-9.15223217,2.560028076,Y
+Blaasop (Blackback),Lagocephalus guentheri,Bony Fishes,Total length,268.19,-10.82821893,2.934397784,Y
+Blaasop (Silverstripe),Lagocephalus sceleratus,Bony Fishes,Fork length,268.23,-10.91246898,2.923995568,Y
+Blaasop (Smooth),Lagocephalus inermis,Bony Fishes,Total length,268.2,-10.74396888,2.9448,Y
+Blaasop (Star),Arothron stellatus,Bony Fishes,Total length,268.8,-9.29916161,2.67238793,Y
+Blaasop (Whitespotted),Arothron hispidus,Bony Fishes,Total length,268.2,-9.772453721,2.800998837,Y
+Blacktail,Diplodus sargus capensis,Bony Fishes,Fork length,183.17,-11.25680542,3.242000103,Y
+Bludger,Carangoides gymnostethus,Bony Fishes,Fork length,210.12,-9.975300789,2.745455027,Y
+Blueskin,Polysteganus coeruleopunctatus,Bony Fishes,Total length,183.29,-11.12160969,3.016948938,Y
+Bonefish,Albula vulpes,Bony Fishes,Fork length,38.1,-10.6660099,2.889776945,Y
+Bonito (Atlantic),Sarda sarda,Bony Fishes,Fork length,249.1,-11.58205986,3.104504108,Y
+Bonito (Striped),Sarda orientalis,Bony Fishes,Fork length,249.9,-10.73902988,2.870177031,Y
+Bream (Bronze),Pachymetopon grande,Bony Fishes,Fork length,183.24,-10.61913013,3.046120882,Y
+Bream (River) / Perch,Acanthopagrus berda,Bony Fishes,Fork length,183.1,-10.64582498,3.022,Y
+Bream (Stone),Neoscorpis lithophilus,Bony Fishes,Fork length,190.1,-10.99118996,3.079790115,Y
+Bream (Twobar),Acanthopagrus bifasciatus,Bony Fishes,Fork length,183.2,-10.15195066,2.910000367,Y
+Carpenter,Argyrozona argyrozona,Bony Fishes,Fork length,183.5,-10.99480285,2.924005836,Y
+Catfish (Eel),Plotosus nkunga,Bony Fishes,Total length,60.2,-11.60569,2.939677,Y
+Catfish (Sea) (Black),Galeichthys ater,Bony Fishes,Fork length,59.2,-11.09877968,3.040005922,Y
+Catfish (White Sea),Galeichthys feliceps,Bony Fishes,Fork length,59.3,-11.37549019,3.080156088,Y
+Cavebass,Dinoperca petersi,Bony Fishes,Total length,180.1,-10.60066032,2.960002899,Y
+Chub (Blue),Kyphosus cinerascens,Bony Fishes,Fork length,189.2,-10.88860035,3.044718981,Y
+Chub (Brassy),Kyphosus vaigiensis,Bony Fishes,Fork length,189.3,-10.81772995,3.036582947,Y
+Chub (Grey),Kyphosus bigibbus,Bony Fishes,Fork length,189.1,-10.4987402,2.85947299,Y
+Concertina fish,Drepane longimanus,Bony Fishes,Total length,195.1,-10.95837975,3.175065041,Y
+Cutlass fish,Trichiurus lepturus,Bony Fishes,Total length,248.6,-15.33028071,3.290133247,Y
+Dageraad,Chrysoblephus cristiceps,Bony Fishes,Fork length,183.9,-10.89997959,3.150401115,Y
+Dane,Porcostoma dentata,Bony Fishes,Fork length,183.33,-10.84992981,2.984142065,Y
+Dorado,Coryphaena hippurus,Bony Fishes,Fork length,211.2,-10.015494,2.60199103,Y
+Eel (Blackedged),Conger cinereus cinereus,Bony Fishes,Total length,40.7,-14.34276962,3.271014929,Y
+Eel (Conger),Conger wilsoni,Bony Fishes,Total length,40.8,-14.34276962,3.271014929,Y
+Eel (Crocodile Snake),Brachysomophis crocodilinus,Bony Fishes,Total length,42.3,-13.11616039,2.998719931,Y
+Eel (Leopard) (Moray),Gymnothorax undulatus,Bony Fishes,Total length,41.24,-13.32042781,2.999919707,Y
+Eel (Pike) (Conger),Muraenesox bagio,Bony Fishes,Total length,45.1,-12.85744953,2.82366991,Y
+Eel (Slender Giant) (Moray),Thyrsoidea macrura,Bony Fishes,Total length,41.28,-11.43947983,2.325802088,Y
+Eel (Yellow Edged Moray),Gymnothorax flavimarginatus,Bony Fishes,Total length,41.12,-14.75876045,3.355549097,Y
+Elephant Fish / St Joseph,Callorhinchus capensis,Bony Fishes,Total length,34.1,-11.73982607,3.0,Y
+Elf / Shad,Pomatomus saltatrix,Bony Fishes,Fork length,178.1,-11.15363979,2.980024099,Y
+Emperor (Blue),Lethrinus nebulosus,Bony Fishes,Fork length,185.13,-10.58632618,3.009999058,Y
+Emperor (Cutthroat,Lethrinus mahsena,Bony Fishes,Fork length,185.11,-11.04290266,3.076994578,Y
+Emperor (Yellowfin),Lethrinus crocineus,Bony Fishes,Total length,185.5,-10.74213982,2.950612068,Y
+Englishman,Chrysoblephus anglicus,Bony Fishes,Fork length,183.8,-9.570588112,2.740123034,Y
+Fingerfin (Natal),Chirodactylus jessicalenorum,Bony Fishes,Fork length,215.5,-11.06046963,2.977108002,Y
+Fingerfin (Twotone),Chirodactylus brachydactylus,Bony Fishes,Fork length,215.3,-11.06046963,2.977108002,Y
+Flathead (Bartailed),Platycephalus indicus,Bony Fishes,Total length,155.6,-9.529065132,2.383610964,Y
+Flounder (Largetooth),Pseudorhombus arsius,Bony Fishes,Total length,259.17,-11.90448041,3.075998458,Y
+Flounder (Measles),Paralichthodes algoensis,Bony Fishes,Total length,260.2,-11.63916969,3.077567101,Y
+Fransmadam,Boopsoidea inornata,Bony Fishes,Fork length,183.6,-10.84992981,2.984142065,Y
+Fusilier (Yellowtail),Paracaesio xanthura,Bony Fishes,Fork length,181.21,-9.466004372,2.578635931,Y
+Galjoen,Dichistius capensis,Bony Fishes,Total length,187.1,-11.33865406,3.1200013,Y
+Galjoen (Banded),Dichistius multifasciatus,Bony Fishes,Fork length,187.2,-10.98548985,3.153011084,Y
+Geelbek,Atractoscion aequidens,Bony Fishes,Fork length,199.3,-11.66189169,3.010003379,Y
+Goatfish (Blacksaddle),Parupeneus rubescens,Bony Fishes,Fork length,196.1,-11.11012884,3.019166473,Y
+Goatfish (Indian),Parupeneus indicus,Bony Fishes,Fork length,196.7,-11.09665966,3.087508917,Y
+Greenspot kingfish,Caranx ???,Bony Fishes,Fork length,,-9.286496056,2.573,Y
+Grunter (Cock),Pomadasys multimaculatum,Bony Fishes,Fork length,179.16,-10.24875749,2.749991417,Y
+Grunter (Grey),Pomadasys furcatus,Bony Fishes,Fork length,179.11,-10.41281986,2.839692116,Y
+Grunter (Javelin),Pomadasys kaakan,Bony Fishes,Fork length,179.13,-10.29008007,2.712771893,Y
+Grunter (Saddle),Pomadasys maculatus,Bony Fishes,Fork length,179.15,-10.75699043,2.899035931,Y
+Grunter (Spotted),Pomadasys commersonnii,Bony Fishes,Fork length,179.1,-11.12304584,2.970594241,Y
+Grunter (Striped),Pomadasys striatus,Bony Fishes,Fork length,179.18,-10.51967369,2.8609,Y
+Gurnard (Cape),Chelidonichthys capensis,Bony Fishes,Fork length,157.1,-11.34669018,2.998744011,Y
+Hogfish (Goldsaddle),Bodianus perditio,Bony Fishes,Fork length,220.1,-11.34317988,3.148749421,Y
+Hottentot,Pachymetopon blochii,Bony Fishes,Fork length,183.23,-10.46722984,2.966594934,Y
+Hottentot (Blue),Pachymetopon aeneum,Bony Fishes,Fork length,183.22,-11.16986078,3.149004285,Y
+Janbruin,Gymnocrotaphus curvidens,Bony Fishes,Fork length,183.18,-10.84992981,2.984142065,Y
+Jobfish (Green),Aprion virescens,Bony Fishes,Fork length,181.3,-10.43450634,2.759998047,Y
+Kingfish (Bigeye),Caranx sexfasciatus,Bony Fishes,Fork length,210.22,-9.286496056,2.573,Y
+Kingfish (Blacktip),Caranx sem,Bony Fishes,Fork length,210.21,-10.49559021,2.856364965,Y
+Kingfish (Blue),Carangoides ferdau,Bony Fishes,Fork length,210.18,-10.20810032,2.850805044,Y
+Kingfish (Bluefin),Caranx melampygus,Bony Fishes,Fork length,210.19,-10.7678299,2.941328049,Y
+Kingfish (Brassy),Caranx papuensis,Bony Fishes,Fork length,210.2,-10.60321999,2.910526991,Y
+Kingfish (Bumpnose),Carangoides hedlandensis,Bony Fishes,Fork length,210.13,-10.17663956,2.864478111,Y
+Kingfish (Giant),Caranx ignobilis,Bony Fishes,Fork length,210.17,-10.7853921,2.987003158,Y
+Kingfish (Golden),Gnathanodon speciosus,Bony Fishes,Fork length,210.32,-10.82273006,2.994575024,Y
+Kingfish (Longfin),Carangoides armatus,Bony Fishes,Fork length,210.5,-11.37750619,3.126157,Y
+Kingfish (Malabar),Carangoides malabaricus,Bony Fishes,Fork length,210.14,-10.48466698,2.9200343,Y
+Kingfish (Tille),Caranx tille,Bony Fishes,Fork length,210.23,-11.64500046,3.163870096,Y
+Kingfish (White),Pseudocaranx dentex,Bony Fishes,Fork length,210.37,-11.21354961,3.064146996,Y
+Kingfish (Yellowspotted),Carangoides fulvoguttatus,Bony Fishes,Fork length,210.11,-9.984062195,2.704864979,Y
+Kingklip,Genypterus capensis,Bony Fishes,Total length,96.9,-13.59237884,3.330002395,Y
+Klipvis,Clinus robustus,Bony Fishes,Total length,237.19,-10.97628975,3.035970926,Y
+Knifejaw (Cape),Oplegnathus conwayi,Bony Fishes,Fork length,206.1,-8.149279594,2.317797899,Y
+Knifejaw (Natal),Oplegnathus robinsoni,Bony Fishes,Fork length,206.3,-8.629741669,2.479295969,Y
+Kob (Common / Dusky),Argyrosomus japonicus,Bony Fishes,Total length,199.1,-11.64128017,3.039433002,Y
+Kob (Silver),Argyrosomus inodorus,Bony Fishes,Total length,199.1,-11.85997963,3.069457054,Y
+Kob (Small),Johnius dussumieri,Bony Fishes,Total length,199.6,-12.04582381,3.279993075,Y
+Kob (Snapper),Otolithes ruber,Bony Fishes,Total length,199.7,-11.91613007,3.129451036,Y
+Kob (Squaretail),Argyrosomus thorpei,Bony Fishes,Total length,199.2,-11.0719099,2.889766932,Y
+Leervis / Garrick,Lichia amia,Bony Fishes,Fork length,210.33,-10.16016912,2.724997342,Y
+Lemonfish,Plectorhinchus flavomaculatus,Bony Fishes,Fork length,179.3,-10.77190018,2.946597099,Y
+Maasbanker,Trachurus trachurus capensis,Bony Fishes,Fork length,210.52,-11.76134544,3.010989873,Y
+Mackerel,Scomber japonicus,Bony Fishes,Fork length,249.11,-12.22801971,3.311351061,Y
+Mackerel (Indian),Rastrelliger kanagurta,Bony Fishes,Fork length,249.8,-11.96550294,3.170004373,Y
+Mackerel (King) / Couta,Scomberomorus commerson,Bony Fishes,Fork length,249.12,-12.93945026,3.252603054,Y
+Mackerel (Queen),Scomberomorus plurilineatus,Bony Fishes,Fork length,249.13,-11.41833019,2.941289902,Y
+Marlin (Black),Makaira indica,Bony Fishes,Lower bill fork leng,252.2,-11.94376423,2.960011686,Y
+Marlin (Striped),Tetrapturus audax,Bony Fishes,Lower bill fork length,252.6,-7.663268501,2.199996862,Y
+Milkfish,Chanos chanos,Bony Fishes,Fork length,58.1,-11.82630077,3.251006967,Y
+Mirrorfish (Indian),Alectis indicus,Bony Fishes,Fork length,210.2,-9.80172522,2.640677,Y
+Mirrorfish (Threadfin),Alectis ciliaris,Bony Fishes,Fork length,210.1,-10.09704883,2.849995135,Y
+Moony (Cape),Monodactylus falciformis,Bony Fishes,Fork length,193.2,-10.40680981,2.964607,Y
+Moony (Natal),Monodactylus argenteus,Bony Fishes,Fork length,193.1,-10.40303156,2.964097522,Y
+Mullet (Bluetail),Valamugil buchanani,Bony Fishes,Fork length,222.12,-11.50212002,3.104231119,Y
+Mullet (Diamond),Liza alata,Bony Fishes,Fork length,222.2,-11.36104012,3.065074921,Y
+Mullet (Flathead),Mugil cephalus,Bony Fishes,Fork length,222.1,-11.36104012,3.065074921,Y
+Mullet (Southern),Liza richardsonii,Bony Fishes,Fork length,222.7,-11.36104012,3.065074921,Y
+Mullet (Striped),Liza tricuspidens,Bony Fishes,Fork length,222.8,-11.36104012,3.065074921,Y
+Musselcracker (Black),Cymatoceps nasutus,Bony Fishes,Fork length,183.15,-10.6225996,3.03468895,Y
+Musselcracker (White),Sparodon durbanensis,Bony Fishes,Fork length,183.4,-10.84058952,3.037132025,Y
+Needlefish (Barred),Ablennes hians,Bony Fishes,Fork length,113.1,-14.15301037,3.126049995,Y
+Needlefish (Crocodile),Tylosurus crocodilus crocodilus,Bony Fishes,Fork length,113.4,-14.06372621,3.204949062,Y
+Needlefish (Yellowfin),Strongylura leiura,Bony Fishes,Fork length,113.3,-11.53367043,2.515065908,Y
+Old Woman,Pomacanthus striatus,Bony Fishes,Total length,204.12,-10.85877991,2.970304012,Y
+Panga,Pterogymnus laniarius,Bony Fishes,Fork length,183.34,-10.7483975,3.030999847,Y
+Parrotfish (Bluebarred),Scarus ghobban,Bony Fishes,Fork length,221.11,-11.01560974,3.041918039,Y
+Piggy,Pomadasys olivaceum,Bony Fishes,Fork length,179.17,-10.03312016,2.702342033,Y
+Pomfret (Black),Parastromateus niger,Bony Fishes,Fork length,210.36,-10.76624012,3.011996031,Y
+Pompano (Largespot),Trachinotus botla,Bony Fishes,Fork length,210.5,-10.84959984,2.944704056,Y
+Pompano (Snubnose),Trachinotus blochii,Bony Fishes,Fork length,210.49,-7.522987605,2.252003003,Y
+Pompano (Southern),Trachinotus africanus,Bony Fishes,Fork length,210.47,-10.4811339,2.887,Y
+Porcupinefish,Diodon hystrix,Bony Fishes,Total length,269.6,-8.161070824,2.344594955,Y
+Prodigal Son,Rachycentron canadum,Bony Fishes,Fork length,212.1,-12.08916687,3.159997553,Y
+Queenfish (Doublespotted ),Scomberoides lysan,Bony Fishes,Fork length,210.39,-11.35838032,2.896507025,Y
+Queenfish (Talang),Scomberoides commersonnianus,Bony Fishes,Fork length,210.38,-10.4296999,2.808700085,Y
+Rabbitfish (Whitespotted),Siganus sutor,Bony Fishes,Fork length,245.2,-9.730881691,2.756633997,Y
+Rainbow Runner,Elagatis bipinnulata,Bony Fishes,Fork length,210.31,-11.2153101,2.920517921,Y
+Remora,Remora remora,Bony Fishes,Fork length,213.5,-12.38527434,3.000015677,Y
+Rockcod (Bigspot),Epinephelus macrospilos,Bony Fishes,Total length,166.4,-11.22684002,3.028954983,Y
+Rockcod (Catface),Epinephelus andersoni,Bony Fishes,Total length,166.34,-10.91963005,2.905693054,Y
+Rockcod (Halfmoon),Epinephelus rivulatus,Bony Fishes,Total length,166.6,-10.91030025,2.967303038,Y
+Rockcod (Malabar),Epinephelus malabaricus,Bony Fishes,Total length,166.48,-11.26603435,3.029993548,Y
+Rockcod (Streakyspot),Epinephelus longispinis,Bony Fishes,Total length,166.46,-11.11575031,3.017632008,Y
+Rockcod (White Edged),Epinephelus albomarginatus,Bony Fishes,Total length,166.33,-11.44960763,3.085002615,Y
+Rockcod (Yellowbelly),Epinephelus marginatus,Bony Fishes,Total length,166.43,-11.16611958,3.055620909,Y
+Rockcod (Yellowtail),Epinephelus flavocaeruleus,Bony Fishes,Fork length,166.41,-11.07188034,3.000761986,Y
+Roman,Chrysoblephus laticeps,Bony Fishes,Fork length,183.11,-10.97504044,3.153796911,Y
+Rubberlip (Barred),Plectorhinchus plagiodesmus,Bony Fishes,Fork length,179.6,-10.77190018,2.946597099,Y
+Rubberlip (Black),Plectorhinchus gibbosus,Bony Fishes,Total length,179.5,-10.77190018,2.946597099,Y
+Rubberlip (Blackspotted),Plectorhinchus gaterinus,Bony Fishes,Total length,179.4,-10.77190018,2.946597099,Y
+Rubberlip (Dusky),Plectorhinchus chubbi,Bony Fishes,Fork length,179.2,-10.77190018,2.946597099,Y
+Rubberlip (Minstrel),Plectorhinchus schotaf,Bony Fishes,Total length,179.8,-10.77190018,2.946597099,Y
+Rubberlip (Redlip),Plectorhinchus sordidus,Bony Fishes,Fork length,179.9,-10.77190018,2.946597099,Y
+Rubberlip (Whitebarred),Plectorhinchus playfairi,Bony Fishes,Fork length,179.7,-10.77190018,2.946597099,Y
+Sailfish,Istiophorus platypterus,Bony Fishes,Lower bill fork length,252.1,-11.06186602,2.819003397,Y
+Santer,Cheimerius nufar,Bony Fishes,Fork length,183.7,-9.32266217,2.570996097,Y
+Scad (Torpedo),Megalaspis cordyla,Bony Fishes,Fork length,210.34,-9.962116241,2.581084967,Y
+Scorpionfish (Spineblotch),Sebastapistes mauritiana,Bony Fishes,Total length,149.38,-10.87395,3.010509968,Y
+Scotsman,Polysteganus praeorbitalis,Bony Fishes,Fork length,183.31,-10.17846012,2.810271978,Y
+Seventy-four,Polysteganus undulosus,Bony Fishes,Fork length,183.32,-9.663599416,2.662591822,Y
+Slimy,Leiognathus equulus,Bony Fishes,Fork length,201.3,-10.51998997,2.979665995,Y
+Slinger,Chrysoblephus puniceps,Bony Fishes,Fork length,183.13,-9.950784683,2.819475889,Y
+Snapper,Lutjanus sanguineus,Bony Fishes,Fork length,181.18,-10.90315893,2.919999823,Y
+Snapper (Bohar),Lutjanus bohar,Bony Fishes,Fork length,181.6,-10.44656912,2.901143485,Y
+Snapper (Humpback),Lutjanus gibbus,Bony Fishes,Fork length,181.1,-11.24155045,3.137221098,Y
+Snapper (River),Lutjanus argentimaculatus,Bony Fishes,Fork length,181.5,-7.397116184,2.210448027,Y
+Snapper (Russells),Lutjanus russellii,Bony Fishes,Fork length,181.17,-11.00728209,2.977883463,Y
+Snapper (Speckled),Lutjanus rivulatus,Bony Fishes,Fork length,181.16,-11.68373796,3.260165012,Y
+Snoek,Thyrsites atun,Bony Fishes,Total length,247.8,-11.85997963,3.069457054,Y
+Soldier (Blotcheye),Myripristis murdjan,Bony Fishes,Total length,132.26,-10.85581017,3.034080982,Y
+Soldierbream (King),Argyrops spinifer,Bony Fishes,Fork length,183.4,-9.435992316,2.657001083,Y
+Sole (Shallow water),Synaptura marginata,Bony Fishes,Total length,262.14,-11.82723045,3.070030928,Y
+Spadefish,Tripterodon orbis,Bony Fishes,Fork length,192.4,-9.570588112,2.740123034,Y
+Springer,Elops machnata,Bony Fishes,Fork length,36.2,-11.84140076,3.052694005,Y
+Steenbras (Red),Petrus rupestris,Bony Fishes,Fork length,183.26,-10.63455963,2.952753067,Y
+Steenbras (Sand),Lithognathus mormyrus,Bony Fishes,Fork length,183.21,-11.27960228,3.0630939,Y
+Steenbras (Westcoast),Lithognathus aureti,Bony Fishes,Fork length,183.19,-10.54615021,2.945183992,Y
+Steenbras (White),Lithognathus lithognathus,Bony Fishes,Fork length,183.2,-11.13979326,3.031065185,Y
+Steentjie,Spondyliosoma emarginatum,Bony Fishes,Fork length,183.41,-10.74057779,3.037413954,Y
+Strepie,Sarpa salpa,Bony Fishes,Fork length,183.14,-11.31787786,3.180003552,Y
+Stumpnose (Bigeye),Rhabdosargus thorpei,Bony Fishes,Fork length,183.38,-10.59704971,3.030087948,Y
+Stumpnose (Cape),Rhabdosargus holubi,Bony Fishes,Fork length,183.36,-10.06836424,2.9266004,Y
+Stumpnose (Natal),Rhabdosargus sarba,Bony Fishes,Fork length,183.27,-9.575611766,2.680001572,Y
+Stumpnose (Red),Chrysoblephus gibbiceps,Bony Fishes,Fork length,183.1,-10.05760956,2.892155886,Y
+Stumpnose (White),Rhabdosargus globiceps,Bony Fishes,Fork length,183.35,-11.01552963,3.078875065,Y
+Tarpon (Oxeye),Megalops cyprinoides,Bony Fishes,Fork length,37.1,-11.31407461,3.033,Y
+Thornfish,Terapon jarbua,Bony Fishes,Fork length,173.2,-11.08113038,3.081997392,Y
+Threadfin (Striped),Polydactylus plebeius,Bony Fishes,Fork length,223.3,-10.8985363,2.997683594,Y
+Tjor-tjor (Red),Pagellus bellottii natalensis,Bony Fishes,Total length,183.25,-11.91059017,3.379415035,Y
+Triggerfish (Bridle),Sufflamen fraenatus,Bony Fishes,Total length,263.17,-10.38154638,2.9470048,Y
+Triggerfish (Clown),Balistoides conspicillum,Bony Fishes,Total length,263.4,-10.62203026,3.018528938,Y
+Triggerfish (Patchy),Rhinecanthus rectangulus,Bony Fishes,Total length,263.14,-10.24499035,2.874799967,Y
+Tripletail,Lobotes surinamensis,Bony Fishes,Total length,202.1,-10.05537987,2.839261055,Y
+Tuna (Bigeye),Thunnus obesus,Bony Fishes,Fork length,249.17,-10.63911242,2.9773974,Y
+Tuna (Bluefin),Thunnus thynnus thynnus,Bony Fishes,Fork length,249.18,-10.67263985,2.933377981,Y
+Tuna (Eastern Little),Euthynnus affinis,Bony Fishes,Fork length,249.4,-10.62724018,2.908230066,Y
+Tuna (Skipjack),Katsuwonus pelamis,Bony Fishes,Fork length,249.7,-12.24932003,3.377445936,Y
+Tuna (Slender),Allothunnus fallai,Bony Fishes,Fork length,249.2,-11.0926199,2.999663115,Y
+Tuna (Yellowfin),Thunnus albacares,Bony Fishes,Fork length,249.15,-10.74747225,2.976003045,Y
+Wahoo,Acanthocybium solandri,Bony Fishes,Fork length,,-12.89534182,3.190023619,Y
+Wolfherring,Chirocentrus dorab,Bony Fishes,Fork length,56.1,-12.18833307,2.987190766,Y
+Wrasse (Ladder),Thalassoma trilobatum,Bony Fishes,Fork length,220.65,-11.16596031,3.007407904,Y
+Wrasse (Natal),Anchichoerops natalensis,Bony Fishes,Fork length,220.4,-11.16596031,3.007407904,Y
+Wrasse (Rainbow),Halichoeres iridis,Bony Fishes,Fork length,220.31,-11.16596031,3.007407904,Y
+Wrasse (Surge),Thalassoma purpureum,Bony Fishes,Fork length,220.63,-11.16596031,3.007407904,Y
+Yellowtail (Giant),Seriola lalandi,Bony Fishes,Fork length,210.44,-10.31437016,2.756263971,Y
+Yellowtail (Longfin),Seriola rivoliana,Bony Fishes,Fork length,210.45,-11.14533043,3.055823088,Y
+Zebra,Diplodus cervinus hottentotus,Bony Fishes,Fork length,183.16,-10.9492374,3.1409986,Y

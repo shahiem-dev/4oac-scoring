@@ -1,0 +1,25 @@
+{
+  "_comment": "Maps the species name as written on catch sheets -> canonical name in species_master.csv. Confirmed 2026-04-28.",
+  "aliases": {
+    "Baardman (Belman)": "Baardman",
+    "Elephant Fish/St Joseph": "Elephant Fish / St Joseph",
+    "Elf/Shad": "Elf / Shad",
+    "Galjoen (TL)": "Galjoen",
+    "Leervis/Garrick": "Leervis / Garrick",
+    "Ray (Bull)/Duckbill": "Ray (Bull) / Duckbill",
+    "Ray (Butterfly/Diamond)": "Ray (Butterfly / Diamond)",
+    "Shark (Smooth Hound - White Spotty) (M)": "Shark (Whitespotted Smooth-hound)",
+    "Shark (Smooth Hound - White Spotty) (F)": "Shark (Whitespotted Smooth-hound)",
+    "Shark (Spotted Gully - Black Spotty)": "Shark (Spotted Gully)",
+    "Site Fish (Catfish - White Sea)": "Catfish (White Sea)",
+    "Site Fish (Gurnard - Cape)": "Gurnard (Cape)",
+    "Guitarfish (Bluntnose) (F)": "Guitarfish (Bluntnose)",
+    "Guitarfish (Bluntnose) (M)": "Guitarfish (Bluntnose)",
+    "Skate (Biscuit)": "Skate (Thornback)"
+  },
+  "zero_score_species": [
+    "Catshark (Brown)",
+    "Catshark (Puffadder)"
+  ],
+  "_sub_minimum_rule": "Any catch entry containing '<' (e.g. '<0.5kg', '<1kg') in the species field scores zero — recorded for participation only."
+}

@@ -1,0 +1,7 @@
+comp_id,wp_no,species_raw,canonical_species,length_cm,weight_kg,edible,status
+1,WP481,Guitarfish (Bluntnose) (F),Guitarfish (Bluntnose),65.0,0.96,N,ok
+1,WP481,Baardman (Belman),Baardman,,0.0,Y,zero:no_length
+1,WP481,Guitarfish (Bluntnose) (F),Guitarfish (Bluntnose),64.0,0.918,N,ok
+1,WP481,Guitarfish (Bluntnose) (M),Guitarfish (Bluntnose),65.0,0.96,N,ok
+1,WP481,Baardman (Belman),Baardman,66.0,3.438,Y,ok
+1,WP481,Guitarfish (Bluntnose) (M),Guitarfish (Bluntnose),66.0,1.003,N,ok
