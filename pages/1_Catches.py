@@ -97,8 +97,12 @@ st.divider()
 st.subheader("All catches (this season)")
 raw = load_catches_raw()
 if len(raw):
+    flt = st.multiselect("Filter by competition", comps, default=[],
+                         key="all_catches_filter",
+                         help="Leave empty to show all. Editing while filtered only saves the filtered rows + unedited rest.")
+    view_raw = raw if not flt else raw[raw["comp_id"].isin(flt)].reset_index(drop=True)
     edited = st.data_editor(
-        raw, num_rows="dynamic", use_container_width=True,
+        view_raw, num_rows="dynamic", use_container_width=True,
         column_config={
             "comp_id": st.column_config.SelectboxColumn("Comp", options=comps, required=True),
             "wp_no": st.column_config.TextColumn("WP No", required=True),
@@ -108,8 +112,13 @@ if len(raw):
         key="catch_editor",
     )
     if st.button("💾 Save changes", type="primary"):
-        save_catches_raw(edited)
-        st.success(f"Saved {len(edited)} catches and rescored.")
+        if flt:
+            kept = raw[~raw["comp_id"].isin(flt)]
+            merged = pd.concat([kept, edited], ignore_index=True)
+        else:
+            merged = edited
+        save_catches_raw(merged)
+        st.success(f"Saved {len(merged)} catches and rescored.")
         st.rerun()
 
     st.divider()
