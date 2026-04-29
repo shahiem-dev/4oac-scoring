@@ -4,10 +4,11 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from app_lib import (angler_options, comp_options, get_scorer,
-                     load_catches_raw, load_catches_scored,
-                     parse_wp_from_label, render_season_sidebar,
-                     save_catches_raw, species_choices)
+from app_lib import (SUB_TEAMS, angler_options, comp_options, get_scorer,
+                     load_anglers, load_catches_raw, load_catches_scored,
+                     load_team_assignments, parse_wp_from_label,
+                     render_season_sidebar, save_catches_raw,
+                     save_team_assignments, species_choices)
 
 st.set_page_config(page_title="Catches · WCSAA League", page_icon="🐟", layout="wide")
 active = render_season_sidebar()
@@ -39,18 +40,43 @@ ss.cap_angler = c2.selectbox("Angler", anglers,
                              index=anglers.index(ss.cap_angler) if ss.cap_angler in anglers else 0,
                              key="sel_angler")
 
-cs1, cs2 = st.columns([3, 1])
+wp_current = parse_wp_from_label(ss.cap_angler)
+team_opts = [""] + SUB_TEAMS
+ta = load_team_assignments()
+existing = ta[(ta["comp_id"] == ss.cap_comp) & (ta["wp_no"] == wp_current)]
+if len(existing):
+    default_team = str(existing.iloc[0]["sub_team"] or "")
+else:
+    ang = load_anglers()
+    ang_row = ang[ang["wp_no"] == wp_current]
+    default_team = str(ang_row.iloc[0].get("sub_team", "") or "") if len(ang_row) else ""
+if default_team not in team_opts:
+    default_team = ""
+
+ct1, ct2, ct3 = st.columns([3, 1, 1])
 sp_idx = species.index(ss.cap_species) if ss.cap_species in species else 0
-ss.cap_species = cs1.selectbox("Species (as written on slip)", species,
+ss.cap_species = ct1.selectbox("Species (as written on slip)", species,
                                index=sp_idx, key="sel_species")
+team_pick = ct3.selectbox("Team (this comp)", team_opts,
+                          index=team_opts.index(default_team),
+                          key=f"sel_team_{ss.cap_comp}_{wp_current}",
+                          help="Sets the angler's sub-team for this competition only. Saved on Add catch.")
 with st.form("add_catch", clear_on_submit=False):
-    length = cs2.number_input("Length (cm)", min_value=0.0, step=0.5, value=0.0,
+    length = ct2.number_input("Length (cm)", min_value=0.0, step=0.5, value=0.0,
                               key="cap_length")
     submitted = st.form_submit_button("➕ Add catch", type="primary", use_container_width=True)
     if submitted:
         from app_lib import points_for
         wp = parse_wp_from_label(ss.cap_angler)
         sp = ss.cap_species
+        ta_now = load_team_assignments()
+        mask = (ta_now["comp_id"] == ss.cap_comp) & (ta_now["wp_no"] == wp)
+        ta_now = ta_now[~mask]
+        if team_pick:
+            ta_now = pd.concat([ta_now, pd.DataFrame([{
+                "comp_id": ss.cap_comp, "wp_no": wp, "sub_team": team_pick}])],
+                ignore_index=True)
+        save_team_assignments(ta_now)
         scorer = get_scorer()
         res = scorer.score(sp, length if length > 0 else None)
         raw = load_catches_raw()
