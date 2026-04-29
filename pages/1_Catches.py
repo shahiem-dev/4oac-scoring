@@ -44,23 +44,20 @@ wp_current = parse_wp_from_label(ss.cap_angler)
 team_opts = [""] + SUB_TEAMS
 ta = load_team_assignments()
 existing = ta[(ta["comp_id"] == ss.cap_comp) & (ta["wp_no"] == wp_current)]
-if len(existing):
-    default_team = str(existing.iloc[0]["sub_team"] or "")
-else:
-    ang = load_anglers()
-    ang_row = ang[ang["wp_no"] == wp_current]
-    default_team = str(ang_row.iloc[0].get("sub_team", "") or "") if len(ang_row) else ""
-if default_team not in team_opts:
-    default_team = ""
+assigned_team = str(existing.iloc[0]["sub_team"] or "") if len(existing) else ""
 
 ct1, ct2, ct3 = st.columns([3, 1, 1])
 sp_idx = species.index(ss.cap_species) if ss.cap_species in species else 0
 ss.cap_species = ct1.selectbox("Species (as written on slip)", species,
                                index=sp_idx, key="sel_species")
-team_pick = ct3.selectbox("Team (this comp)", team_opts,
-                          index=team_opts.index(default_team),
-                          key=f"sel_team_{ss.cap_comp}_{wp_current}",
-                          help="Sets the angler's sub-team for this competition only. Saved on Add catch.")
+if assigned_team:
+    team_pick = assigned_team
+    ct3.markdown(f"**Team (this comp)**\n\n🏷️ `{assigned_team}` — set on Competitions page")
+else:
+    team_pick = ct3.selectbox("Team (this comp)", team_opts, index=0,
+                              key=f"sel_team_{ss.cap_comp}_{wp_current}",
+                              help="No team set in Competitions → Team Selection. "
+                                   "Optionally pick one here; it will be saved on Add catch.")
 with st.form("add_catch", clear_on_submit=False):
     length = ct2.number_input("Length (cm)", min_value=0.0, step=0.5, value=0.0,
                               key="cap_length")

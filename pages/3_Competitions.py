@@ -60,13 +60,7 @@ with tab_teams:
     view["team"] = view["team"].fillna("")
     view = view[["wp_no", "Angler", "club", "team"]].sort_values(["club", "Angler"]).reset_index(drop=True)
 
-    # Per-team count summary
-    counts = view[view["team"] != ""].groupby("team").size().reindex(SUB_TEAMS, fill_value=0)
-    st.markdown("**Team sizes for this comp**")
-    cs = st.columns(len(SUB_TEAMS))
-    for i, t in enumerate(SUB_TEAMS):
-        cs[i].metric(f"Team {t}", int(counts[t]))
-
+    TEAM_LIMIT = 8
     edited = st.data_editor(
         view, use_container_width=True, hide_index=True, key=f"team_edit_{comp}",
         column_config={
@@ -75,12 +69,25 @@ with tab_teams:
             "club": st.column_config.TextColumn("Club", disabled=True),
             "team": st.column_config.SelectboxColumn(
                 "Team (A–I)", options=[""] + SUB_TEAMS,
-                help="Blank = not selected for this comp"),
+                help=f"Blank = not selected. Max {TEAM_LIMIT} anglers per team."),
         },
     )
 
+    counts = edited[edited["team"] != ""].groupby("team").size().reindex(SUB_TEAMS, fill_value=0)
+    over = [t for t in SUB_TEAMS if counts[t] > TEAM_LIMIT]
+    st.markdown(f"**Team sizes for this comp** (max {TEAM_LIMIT} per team)")
+    cs = st.columns(len(SUB_TEAMS))
+    for i, t in enumerate(SUB_TEAMS):
+        n = int(counts[t])
+        delta = f"+{n - TEAM_LIMIT} over" if n > TEAM_LIMIT else None
+        cs[i].metric(f"Team {t}", n, delta=delta, delta_color="inverse" if delta else "off")
+
+    if over:
+        st.error(f"Team(s) {', '.join(over)} exceed the {TEAM_LIMIT}-angler limit. "
+                 "Reduce them before saving.")
+
     c1, c2, c3 = st.columns([1, 1, 4])
-    if c1.button("💾 Save team selection", type="primary"):
+    if c1.button("💾 Save team selection", type="primary", disabled=bool(over)):
         new_rows = edited[edited["team"] != ""][["wp_no", "team"]].copy()
         new_rows["comp_id"] = comp
         new_rows = new_rows.rename(columns={"team": "sub_team"})
