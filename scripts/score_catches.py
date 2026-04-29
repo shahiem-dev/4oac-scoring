@@ -2,12 +2,17 @@
 with computed columns filled in. Also writes catches_scored.csv for downstream
 report generation.
 """
+import math
 from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
 
 from scoring import Scorer
+
+
+def _floor2(x: float) -> float:
+    return math.floor(float(x) * 100) / 100.0
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 SEASONS = DATA / "seasons"
@@ -44,7 +49,7 @@ def main() -> None:
             L = None
         res = s.score(str(species_raw), L)
         row[4].value = res.canonical_name
-        row[5].value = round(res.weight_kg, 3)
+        row[5].value = _floor2(res.weight_kg)
         row[6].value = res.edible
         row[7].value = res.note
         rows.append({

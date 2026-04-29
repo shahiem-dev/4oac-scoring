@@ -1,4 +1,4 @@
-"""Build the 4OAC IC League Tracker — a single print-ready XLSX with:
+"""Build the WCSAA IC League Tracker — a single print-ready XLSX with:
 
   Dashboard          — club ranking + top 20 individuals (snapshot)
   Club Standings     — clubs x IC matrix with totals + rank
@@ -50,7 +50,7 @@ _DESKTOP_CANDIDATES = [
     Path.home() / "Desktop",
 ]
 DESKTOP = next((p for p in _DESKTOP_CANDIDATES if p.exists()), _DESKTOP_CANDIDATES[-1])
-OUT = DESKTOP / "League" / f"4OAC_League_Tracker_{SEASON}.xlsx"
+OUT = DESKTOP / "League" / f"WCSAA_League_Tracker_{SEASON}.xlsx"
 
 FONT = "Arial"
 TITLE = Font(name=FONT, bold=True, size=16, color="FFFFFF")
@@ -68,6 +68,33 @@ CENTER = Alignment(horizontal="center", vertical="center")
 LEFT = Alignment(horizontal="left", vertical="center")
 
 
+def _load_team_assignments(season_dir):
+    p = season_dir / "team_assignments.csv"
+    if not p.exists():
+        return pd.DataFrame(columns=["comp_id", "wp_no", "sub_team"])
+    df = pd.read_csv(p, dtype=str).fillna("")
+    df["comp_id"] = df["comp_id"].str.strip()
+    df["wp_no"] = df["wp_no"].str.strip()
+    df["sub_team"] = df["sub_team"].str.strip().str.upper()
+    return df
+
+
+def _attach_sub_team(catches, anglers, season_dir):
+    ta = _load_team_assignments(season_dir)
+    out = catches.copy()
+    if not ta.empty:
+        out = out.merge(ta.rename(columns={"sub_team": "_a"}),
+                        on=["comp_id", "wp_no"], how="left")
+    else:
+        out["_a"] = ""
+    out = out.merge(anglers[["wp_no", "sub_team"]].rename(columns={"sub_team": "_d"}),
+                    on="wp_no", how="left")
+    a = out["_a"].fillna("").astype(str).str.upper().str.strip()
+    d = out["_d"].fillna("").astype(str).str.upper().str.strip()
+    out["sub_team"] = a.where(a != "", d)
+    return out.drop(columns=["_a", "_d"], errors="ignore")
+
+
 def load() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     catches = pd.read_csv(SEASON_DIR / "catches_scored.csv")
     anglers = pd.read_csv(SEASON_DIR / "anglers.csv")
@@ -76,6 +103,7 @@ def load() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
     anglers["wp_no"] = anglers["wp_no"].astype(str).str.strip()
     catches["comp_id"] = catches["comp_id"].astype(str).str.strip()
     catches["points"] = catches.apply(lambda r: score_catch(r["weight_kg"], r["edible"]), axis=1)
+    catches = _attach_sub_team(catches, anglers, SEASON_DIR)
     comp_order = sorted(catches["comp_id"].unique().tolist())
     return catches, anglers, comps, comp_order
 
@@ -91,7 +119,7 @@ def setup_print(ws: Worksheet, *, header_rows: int = 2, repeat_header_row: int |
     if repeat_header_row:
         ws.print_title_rows = f"{repeat_header_row}:{repeat_header_row}"
     ws.oddFooter.center.text = "&P of &N"
-    ws.oddFooter.right.text = "4OAC League Tracker"
+    ws.oddFooter.right.text = "WCSAA League Tracker"
 
 
 def write_title(ws: Worksheet, title: str, subtitle: str, ncols: int) -> int:
@@ -167,7 +195,7 @@ def build_dashboard(wb: Workbook, catches, anglers, comp_order, season: str) -> 
     ind = ind.rename(columns={"wp_no": "WP No", "angler": "Angler", "club": "Club",
                               "league_code": "Lg", "points": "Total Points"})
 
-    next_row = write_title(ws, "4OAC League Dashboard", f"Season {season} — through {comp_order[-1] if comp_order else 'no comps'}",
+    next_row = write_title(ws, "WCSAA League Dashboard", f"Season {season} — through {comp_order[-1] if comp_order else 'no comps'}",
                            ncols=6)
     ws.cell(row=next_row, column=1, value="Club Standings").font = Font(name=FONT, bold=True, size=12)
     next_row += 1
@@ -183,23 +211,52 @@ def build_dashboard(wb: Workbook, catches, anglers, comp_order, season: str) -> 
 
 
 def build_club_standings(wb: Workbook, catches, anglers, comp_order) -> None:
+    """Two views: per-comp totals (clubs × IC) and current sub-team breakdown (PNTS A..I + A+B)."""
+    sub_teams = list("ABCDEFGHI")
+
     ws = wb.create_sheet("Club Standings")
     cc = catches.merge(anglers[["wp_no", "club"]], on="wp_no", how="left")
     cc["club"] = cc["club"].fillna("UNKNOWN")
+    cc["sub_team"] = cc["sub_team"].fillna("").str.upper().str.strip()
+
+    # ----- Per-comp matrix (clubs x IC) -----
     pivot = cc.pivot_table(index="club", columns="comp_id", values="points",
                            aggfunc="sum", fill_value=0)
     pivot = pivot.reindex(columns=comp_order, fill_value=0)
     pivot["Total"] = pivot.sum(axis=1)
     pivot = pivot.sort_values("Total", ascending=False).reset_index()
-    pivot.insert(0, "Rank", range(1, len(pivot) + 1))
+    pivot.insert(0, "Pos.", range(1, len(pivot) + 1))
     pivot = pivot.rename(columns={"club": "Club"})
 
     next_row = write_title(ws, "Club Standings — All Competitions",
                            f"Through {comp_order[-1] if comp_order else 'no comps'}",
-                           ncols=len(pivot.columns))
-    write_table(ws, pivot, start_row=next_row, total_row=True,
-                num_cols=list(comp_order) + ["Total"])
-    setup_print(ws, repeat_header_row=next_row)
+                           ncols=max(len(pivot.columns), 12))
+    last = write_table(ws, pivot, start_row=next_row, total_row=True,
+                       num_cols=list(comp_order) + ["Total"])
+
+    # ----- Sub-team breakdown (PNTS A..I + A+B) -----
+    next_row = last + 3
+    ws.cell(row=next_row, column=1, value="Sub-team Breakdown (Season)").font = \
+        Font(name=FONT, bold=True, size=12)
+    next_row += 1
+    sub_pivot = cc.pivot_table(index="club", columns="sub_team",
+                               values="points", aggfunc="sum")
+    sub_pivot = sub_pivot.reindex(columns=sub_teams)
+    out = pd.DataFrame(index=sub_pivot.index)
+    out["PNTS A"] = sub_pivot["A"]
+    out["PNTS B"] = sub_pivot["B"]
+    ab = sub_pivot["A"].fillna(0) + sub_pivot["B"].fillna(0)
+    ab[sub_pivot["A"].isna() & sub_pivot["B"].isna()] = pd.NA
+    out["PNTS A+B"] = ab
+    for t in sub_teams[2:]:
+        out[f"PNTS {t}"] = sub_pivot[t]
+    out = out.sort_values("PNTS A+B", ascending=False, na_position="last").reset_index()
+    out.insert(0, "Pos.", range(1, len(out) + 1))
+    out = out.rename(columns={"club": "CLUB"})
+    write_table(ws, out, start_row=next_row, total_row=False,
+                num_cols=[c for c in out.columns if c.startswith("PNTS")])
+
+    setup_print(ws, repeat_header_row=4)
     ws.sheet_view.showGridLines = False
 
 
@@ -230,8 +287,10 @@ def build_club_sheet(wb: Workbook, club: str, catches, anglers, comp_order) -> N
     sheet_name = club[:31] if club else "UNKNOWN"
     ws = wb.create_sheet(sheet_name)
     club_anglers = anglers[anglers["club"].fillna("UNKNOWN") == club].copy()
+    club_anglers["sub_team"] = club_anglers["sub_team"].fillna("").astype(str).str.upper().str.strip()
     cc = catches.merge(anglers[["wp_no", "club"]], on="wp_no", how="left")
     cc["club"] = cc["club"].fillna("UNKNOWN")
+    cc["sub_team"] = cc["sub_team"].fillna("").astype(str).str.upper().str.strip()
     cc = cc[cc["club"] == club]
 
     # Per-angler points pivot
@@ -243,13 +302,35 @@ def build_club_sheet(wb: Workbook, club: str, catches, anglers, comp_order) -> N
         if c not in out.columns:
             out[c] = 0
     out["Total"] = out[comp_order].sum(axis=1) if comp_order else 0
-    out = out[["wp_no", "angler", "league_code"] + comp_order + ["Total"]]
-    out = out.sort_values("Total", ascending=False).reset_index(drop=True)
-    out.insert(0, "Rank", range(1, len(out) + 1))
-    out = out.rename(columns={"wp_no": "WP No", "angler": "Angler", "league_code": "Lg"})
+    out = out[["sub_team", "wp_no", "angler", "league_code"] + comp_order + ["Total"]]
+    # Rank within sub-team, then overall sort
+    out["Pos."] = (out.groupby("sub_team")["Total"]
+                   .rank(method="dense", ascending=False).fillna(0).astype(int))
+    out = out.sort_values(["sub_team", "Total"], ascending=[True, False]).reset_index(drop=True)
+    out = out[["Pos.", "sub_team", "wp_no", "angler", "league_code"] + comp_order + ["Total"]]
+    out = out.rename(columns={"sub_team": "Team", "wp_no": "WP No",
+                              "angler": "Angler", "league_code": "Div"})
 
     next_row = write_title(ws, f"{club} — Members", f"Through {comp_order[-1] if comp_order else 'no comps'}",
                            ncols=len(out.columns))
+
+    # Sub-team summary (A..I + A+B)
+    sub_teams = list("ABCDEFGHI")
+    sub_pivot = cc.groupby("sub_team")["points"].sum().reindex(sub_teams)
+    summary = pd.DataFrame({
+        "Team": sub_teams + ["A+B"],
+        "Points": list(sub_pivot.values) + [
+            (sub_pivot.get("A", 0) or 0) + (sub_pivot.get("B", 0) or 0)
+            if not (pd.isna(sub_pivot.get("A")) and pd.isna(sub_pivot.get("B"))) else pd.NA
+        ],
+    })
+    ws.cell(row=next_row, column=1, value="Sub-team Totals").font = Font(name=FONT, bold=True, size=12)
+    next_row += 1
+    last = write_table(ws, summary, start_row=next_row, num_cols=["Points"])
+    next_row = last + 3
+    ws.cell(row=next_row, column=1, value="Members (ranked within sub-team)").font = \
+        Font(name=FONT, bold=True, size=12)
+    next_row += 1
     last = write_table(ws, out, start_row=next_row, total_row=True,
                        num_cols=list(comp_order) + ["Total"])
 
@@ -276,15 +357,16 @@ def build_club_sheet(wb: Workbook, club: str, catches, anglers, comp_order) -> N
 def build_notes(wb: Workbook, season: str) -> None:
     ws = wb.create_sheet("Notes")
     notes = [
-        ("4OAC IC League Tracker", TITLE_FILL),
+        ("WCSAA IC League Tracker", TITLE_FILL),
         (f"Season: {season}", None),
         ("", None),
-        ("Scoring rule (confirmed 2026-04-28):", None),
+        ("Scoring rule:", None),
         ("    Edible fish      = 4 points per kg", None),
-        ("    Non-edible fish  = 1 point per kg", None),
+        ("    Non-edible fish  = 1 point per kg (under 1.00 kg = 0 pts)", None),
+        ("    All scores are floored to 2 decimal places.", None),
         ("    Site Fish (...)  = 1.00 kg flat (then × points-per-kg above)", None),
         ("    < X kg suffix    = 0 points (sub-minimum / participation)", None),
-        ("    Catshark (Brown / Puffadder), Skate (Biscuit) = 0 points", None),
+        ("    Catshark (Brown), Catshark (Puffadder) = 0 points", None),
         ("", None),
         ("Weight formula: W_kg = exp(log_a + b × ln(length_cm))   (SASAA)", None),
         ("", None),

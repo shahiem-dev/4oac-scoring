@@ -30,6 +30,8 @@ DATA = ROOT / "data"
 SCRIPTS = ROOT / "scripts"
 SEASONS_DIR = DATA / "seasons"
 ACTIVE_FILE = DATA / "active_season.txt"
+LOGOS_DIR = DATA / "logos"
+LOGO_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 
 sys.path.insert(0, str(SCRIPTS))
 from scoring import Scorer  # noqa: E402
@@ -48,6 +50,30 @@ DEFAULT_ANGLER_COLS = ["wp_no", "sasaa_no", "first_name", "surname", "club",
                        "sub_team", "league_division", "league_code"]
 DEFAULT_COMP_COLS = ["comp_id", "date", "venue"]
 DEFAULT_CATCH_COLS = ["comp_id", "wp_no", "species_raw", "length_cm"]
+
+CLUBS = ["TWO OCEANS", "FALSEBAY", "TYGERBERG", "BLUE RAY",
+         "FOUR OCEANS", "GOODWOOD", "POLICE"]
+SUB_TEAMS = ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+DIVISIONS = {
+    "G": "GrandMasters",
+    "J": "Juniors",
+    "K": "Kids",
+    "L": "Ladies",
+    "M": "Masters",
+    "S": "Seniors",
+}
+DIVISION_CODES = list(DIVISIONS.keys())
+DIVISION_LABELS = [f"{c} — {DIVISIONS[c]}" for c in DIVISION_CODES]
+
+
+def division_label(code: str) -> str:
+    code = (code or "").strip().upper()
+    return f"{code} — {DIVISIONS[code]}" if code in DIVISIONS else ""
+
+
+def division_code(label: str) -> str:
+    if not label: return ""
+    return label.split(" — ", 1)[0].strip().upper()
 
 
 # ---- Season management ---------------------------------------------------
@@ -129,6 +155,7 @@ def clear_catches(season: str | None = None) -> None:
     pd.DataFrame(columns=["comp_id", "wp_no", "species_raw", "canonical_species",
                           "length_cm", "weight_kg", "edible", "status"]
                  ).to_csv(d / "catches_scored.csv", index=False)
+    (d / "team_assignments.csv").unlink(missing_ok=True)
 
 
 def clear_all_season_data(season: str | None = None) -> None:
@@ -145,6 +172,50 @@ def anglers_csv() -> Path: return season_dir() / "anglers.csv"
 def comps_csv() -> Path: return season_dir() / "competitions.csv"
 def catches_raw_csv() -> Path: return season_dir() / "catches_raw.csv"
 def catches_scored_csv() -> Path: return season_dir() / "catches_scored.csv"
+def team_assignments_csv() -> Path: return season_dir() / "team_assignments.csv"
+
+
+# ---- Per-competition team assignments ------------------------------------
+
+def load_team_assignments() -> pd.DataFrame:
+    p = team_assignments_csv()
+    if not p.exists():
+        return pd.DataFrame(columns=["comp_id", "wp_no", "sub_team"])
+    df = pd.read_csv(p, dtype=str).fillna("")
+    df["comp_id"] = df["comp_id"].str.strip()
+    df["wp_no"] = df["wp_no"].str.strip()
+    df["sub_team"] = df["sub_team"].str.strip().str.upper()
+    return df
+
+
+def save_team_assignments(df: pd.DataFrame) -> None:
+    df = df.copy()
+    df["comp_id"] = df["comp_id"].astype(str).str.strip()
+    df["wp_no"] = df["wp_no"].astype(str).str.strip()
+    df["sub_team"] = df["sub_team"].astype(str).str.strip().str.upper()
+    df = df[(df["comp_id"] != "") & (df["wp_no"] != "") & (df["sub_team"] != "")]
+    df = df[["comp_id", "wp_no", "sub_team"]].drop_duplicates(["comp_id", "wp_no"], keep="last")
+    df.to_csv(team_assignments_csv(), index=False)
+
+
+def resolve_sub_team(catches: pd.DataFrame, anglers: pd.DataFrame) -> pd.DataFrame:
+    """Add a 'sub_team' column to catches, using per-comp assignments where set,
+    falling back to the angler's default sub_team."""
+    out = catches.copy()
+    ta = load_team_assignments()
+    if not ta.empty:
+        out = out.merge(ta.rename(columns={"sub_team": "sub_team_assigned"}),
+                        on=["comp_id", "wp_no"], how="left")
+    else:
+        out["sub_team_assigned"] = ""
+    out = out.merge(
+        anglers[["wp_no", "sub_team"]].rename(columns={"sub_team": "sub_team_default"}),
+        on="wp_no", how="left",
+    )
+    assigned = out["sub_team_assigned"].fillna("").astype(str).str.upper().str.strip()
+    default = out["sub_team_default"].fillna("").astype(str).str.upper().str.strip()
+    out["sub_team"] = assigned.where(assigned != "", default)
+    return out.drop(columns=["sub_team_assigned", "sub_team_default"], errors="ignore")
 
 
 # ---- Scoring -------------------------------------------------------------
@@ -275,6 +346,72 @@ def angler_options() -> list[str]:
 
 def parse_wp_from_label(label: str) -> str:
     return label.split(" — ", 1)[0].strip() if label else ""
+
+
+# ---- Logo management -----------------------------------------------------
+
+def safe_slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", (s or "").strip().lower()).strip("_")
+
+
+def _logo_search(slug: str) -> Path | None:
+    LOGOS_DIR.mkdir(parents=True, exist_ok=True)
+    for ext in LOGO_EXTS:
+        p = LOGOS_DIR / f"{slug}{ext}"
+        if p.exists() and p.is_file() and p.stat().st_size > 0:
+            return p
+    return None
+
+
+def get_logo_bytes(key: str) -> bytes | None:
+    p = _logo_search(safe_slug(key))
+    return p.read_bytes() if p else None
+
+
+def save_logo(key: str, uploaded_file) -> Path:
+    LOGOS_DIR.mkdir(parents=True, exist_ok=True)
+    slug = safe_slug(key)
+    for ext in LOGO_EXTS:
+        old = LOGOS_DIR / f"{slug}{ext}"
+        if old.exists():
+            old.unlink()
+    suffix = Path(uploaded_file.name).suffix.lower() or ".png"
+    if suffix not in LOGO_EXTS:
+        suffix = ".png"
+    target = LOGOS_DIR / f"{slug}{suffix}"
+    target.write_bytes(uploaded_file.getbuffer())
+    return target
+
+
+def remove_logo(key: str) -> None:
+    slug = safe_slug(key)
+    for ext in LOGO_EXTS:
+        p = LOGOS_DIR / f"{slug}{ext}"
+        if p.exists():
+            p.unlink()
+
+
+def manage_logo(key: str, *, label: str = "Logo", width: int = 180,
+                placeholder: str = "No logo uploaded yet.") -> None:
+    """Render a compact upload/preview/remove block for the given logo key."""
+    img = get_logo_bytes(key)
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        if img:
+            st.image(img, width=width)
+        else:
+            st.info(placeholder)
+    with c2:
+        up = st.file_uploader(label, type=[e[1:] for e in LOGO_EXTS],
+                              key=f"_upl_{safe_slug(key)}")
+        if up is not None:
+            save_logo(key, up)
+            st.success("Logo saved.")
+            st.rerun()
+        if img and st.button("Remove logo", key=f"_rm_{safe_slug(key)}"):
+            remove_logo(key)
+            st.success("Logo removed.")
+            st.rerun()
 
 
 def render_season_sidebar() -> str:

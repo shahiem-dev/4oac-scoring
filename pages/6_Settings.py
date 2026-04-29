@@ -8,7 +8,7 @@ from app_lib import (clear_all_season_data, clear_catches, create_season,
                      load_catches_raw, load_comps, render_season_sidebar,
                      set_active_season)
 
-st.set_page_config(page_title="Settings · 4OAC League", page_icon="⚙", layout="wide")
+st.set_page_config(page_title="Settings · WCSAA League", page_icon="⚙", layout="wide")
 active = render_season_sidebar()
 st.title("⚙ Settings")
 seasons = list_seasons()

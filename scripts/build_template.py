@@ -94,7 +94,7 @@ def main() -> None:
     # Notes / instructions sheet
     ws = wb.create_sheet("README", 0)
     notes = [
-        "4OAC Catch Entry Template",
+        "WCSAA Catch Entry Template",
         "",
         "How to use:",
         "  1. Add new competitions on the Competitions sheet (comp_id e.g. IC 9).",
@@ -114,7 +114,7 @@ def main() -> None:
         "  - Weight: W_kg = exp(log_a + b * ln(length_cm))",
         "  - 'Site Fish (...)'  → flat 1.00 kg regardless of length",
         "  - '< X kg' suffix    → score 0 (participation only)",
-        "  - Catshark (Brown), Catshark (Puffadder), Skate (Biscuit) → score 0",
+        "  - Catshark (Brown), Catshark (Puffadder) → score 0",
     ]
     for i, line in enumerate(notes, 1):
         c = ws.cell(row=i, column=1, value=line)

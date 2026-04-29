@@ -9,7 +9,7 @@ from app_lib import (angler_options, comp_options, get_scorer,
                      parse_wp_from_label, render_season_sidebar,
                      save_catches_raw, species_choices)
 
-st.set_page_config(page_title="Catches · 4OAC League", page_icon="🐟", layout="wide")
+st.set_page_config(page_title="Catches · WCSAA League", page_icon="🐟", layout="wide")
 active = render_season_sidebar()
 st.title(f"🐟 Catches — {active}")
 
@@ -29,6 +29,7 @@ st.subheader("Capture catch")
 ss = st.session_state
 ss.setdefault("cap_comp", comps[-1])
 ss.setdefault("cap_angler", anglers[0])
+ss.setdefault("cap_species", species[0] if species else "")
 
 c1, c2 = st.columns(2)
 ss.cap_comp = c1.selectbox("Competition", comps,
@@ -38,13 +39,18 @@ ss.cap_angler = c2.selectbox("Angler", anglers,
                              index=anglers.index(ss.cap_angler) if ss.cap_angler in anglers else 0,
                              key="sel_angler")
 
-with st.form("add_catch", clear_on_submit=True):
-    cs1, cs2 = st.columns([3, 1])
-    sp = cs1.selectbox("Species (as written on slip)", species)
-    length = cs2.number_input("Length (cm)", min_value=0.0, step=0.5, value=0.0)
+cs1, cs2 = st.columns([3, 1])
+sp_idx = species.index(ss.cap_species) if ss.cap_species in species else 0
+ss.cap_species = cs1.selectbox("Species (as written on slip)", species,
+                               index=sp_idx, key="sel_species")
+with st.form("add_catch", clear_on_submit=False):
+    length = cs2.number_input("Length (cm)", min_value=0.0, step=0.5, value=0.0,
+                              key="cap_length")
     submitted = st.form_submit_button("➕ Add catch", type="primary", use_container_width=True)
     if submitted:
+        from app_lib import points_for
         wp = parse_wp_from_label(ss.cap_angler)
+        sp = ss.cap_species
         scorer = get_scorer()
         res = scorer.score(sp, length if length > 0 else None)
         raw = load_catches_raw()
@@ -55,9 +61,9 @@ with st.form("add_catch", clear_on_submit=True):
         if res.canonical_name is None and res.note == "error:unknown_species":
             st.error(f"Saved, but **{sp}** is unmatched — scoring 0 until the species master/aliases are updated.")
         else:
-            pts = (4.0 if str(res.edible).upper() == "Y" else 1.0) * res.weight_kg
+            pts = points_for(res.weight_kg, res.edible)
             st.success(f"✓ {ss.cap_comp} · {ss.cap_angler} · {sp} @ {length}cm → "
-                       f"**{res.weight_kg:.3f} kg** = **{pts:.1f} pts** ({res.note})")
+                       f"**{res.weight_kg:.2f} kg** = **{pts:.2f} pts** ({res.note})")
 
 st.divider()
 

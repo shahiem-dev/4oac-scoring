@@ -4,10 +4,10 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from app_lib import (load_anglers, load_catches_scored, load_comps,
-                     render_season_sidebar)
+from app_lib import (DIVISIONS, load_anglers, load_catches_scored, load_comps,
+                     render_season_sidebar, resolve_sub_team)
 
-st.set_page_config(page_title="Standings · 4OAC League", page_icon="🏆", layout="wide")
+st.set_page_config(page_title="Standings · WCSAA League", page_icon="🏆", layout="wide")
 active = render_season_sidebar()
 st.title(f"🏆 Standings — {active}")
 
@@ -19,26 +19,48 @@ if catches.empty:
     st.info("No catches yet.")
     st.stop()
 
-cc = catches.merge(anglers, on="wp_no", how="left")
+cc = resolve_sub_team(catches, anglers).merge(
+    anglers.drop(columns=["sub_team"], errors="ignore"), on="wp_no", how="left")
 cc["club"] = cc["club"].fillna("UNKNOWN").replace("", "UNKNOWN")
+cc["sub_team"] = cc["sub_team"].fillna("").astype(str).str.upper().str.strip()
 cc["Angler"] = (cc["first_name"].fillna("") + " " + cc["surname"].fillna("")).str.strip()
 cc.loc[cc["Angler"] == "", "Angler"] = "(unknown)"
 comp_order = sorted(catches["comp_id"].unique().tolist())
+SUB_TEAMS = list("ABCDEFGHI")
 
 tab_club, tab_ind, tab_league, tab_drill = st.tabs(
-    ["By Club", "Individuals", "Per League", "Club Drilldown"])
+    ["By Club", "Individuals", "Per Division", "Club Drilldown"])
 
 with tab_club:
+    st.markdown("##### By Sub-team (A..I + A+B)")
+    sub = cc.pivot_table(index="club", columns="sub_team",
+                         values="points", aggfunc="sum")
+    sub = sub.reindex(columns=SUB_TEAMS)
+    out = pd.DataFrame(index=sub.index)
+    out["PNTS A"] = sub["A"]; out["PNTS B"] = sub["B"]
+    ab = sub["A"].fillna(0) + sub["B"].fillna(0)
+    ab[sub["A"].isna() & sub["B"].isna()] = pd.NA
+    out["PNTS A+B"] = ab
+    for t in SUB_TEAMS[2:]:
+        out[f"PNTS {t}"] = sub[t]
+    out = out.sort_values("PNTS A+B", ascending=False, na_position="last").reset_index()
+    out.insert(0, "Pos.", range(1, len(out) + 1))
+    out = out.rename(columns={"club": "CLUB"})
+    st.dataframe(out, use_container_width=True, hide_index=True)
+    st.download_button("⬇ Download CSV", out.to_csv(index=False).encode(),
+                       "club_subteam_standings.csv", "text/csv")
+
+    st.markdown("##### Per-comp Totals")
     pivot = cc.pivot_table(index="club", columns="comp_id", values="points",
                            aggfunc="sum", fill_value=0)
     pivot = pivot.reindex(columns=comp_order, fill_value=0)
     pivot["Total"] = pivot.sum(axis=1)
     pivot = pivot.sort_values("Total", ascending=False).reset_index()
-    pivot.insert(0, "Rank", range(1, len(pivot) + 1))
+    pivot.insert(0, "Pos.", range(1, len(pivot) + 1))
     pivot = pivot.rename(columns={"club": "Club"})
     st.dataframe(pivot, use_container_width=True, hide_index=True)
     st.download_button("⬇ Download CSV", pivot.to_csv(index=False).encode(),
-                       "club_standings.csv", "text/csv")
+                       "club_per_comp_standings.csv", "text/csv")
 
 with tab_ind:
     pivot = cc.pivot_table(index=["wp_no", "Angler", "club", "league_code"],
@@ -58,9 +80,9 @@ with tab_ind:
 with tab_league:
     leagues = sorted([x for x in cc["league_code"].dropna().unique() if x != ""])
     if not leagues:
-        st.info("No league codes set on anglers.")
+        st.info("No divisions set on anglers — set them on the **Clubs** page.")
     for lg in leagues:
-        st.markdown(f"### League {lg}")
+        st.markdown(f"### {lg} — {DIVISIONS.get(lg.upper(), '')}")
         sub = cc[cc["league_code"] == lg]
         p = sub.pivot_table(index=["wp_no", "Angler", "club"],
                             columns="comp_id", values="points",

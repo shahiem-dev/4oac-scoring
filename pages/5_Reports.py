@@ -10,7 +10,7 @@ import streamlit as st
 
 from app_lib import ROOT, comp_options, render_season_sidebar
 
-st.set_page_config(page_title="Reports · 4OAC League", page_icon="📑", layout="wide")
+st.set_page_config(page_title="Reports · WCSAA League", page_icon="📑", layout="wide")
 active = render_season_sidebar()
 st.title(f"📑 Reports — {active}")
 st.caption("Generate printable XLSX outputs. Open in Excel and 'Save as PDF' for printing.")

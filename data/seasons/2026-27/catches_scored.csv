@@ -1,7 +1,12 @@
 comp_id,wp_no,species_raw,canonical_species,length_cm,weight_kg,edible,status
-1,WP481,Guitarfish (Bluntnose) (F),Guitarfish (Bluntnose),65.0,0.96,N,ok
+1,WP481,Guitarfish (Bluntnose) (F),Guitarfish (Bluntnose),65.0,0.95,N,ok
 1,WP481,Baardman (Belman),Baardman,,0.0,Y,zero:no_length
-1,WP481,Guitarfish (Bluntnose) (F),Guitarfish (Bluntnose),64.0,0.918,N,ok
-1,WP481,Guitarfish (Bluntnose) (M),Guitarfish (Bluntnose),65.0,0.96,N,ok
-1,WP481,Baardman (Belman),Baardman,66.0,3.438,Y,ok
-1,WP481,Guitarfish (Bluntnose) (M),Guitarfish (Bluntnose),66.0,1.003,N,ok
+1,WP481,Guitarfish (Bluntnose) (F),Guitarfish (Bluntnose),64.0,0.91,N,ok
+1,WP481,Guitarfish (Bluntnose) (M),Guitarfish (Bluntnose),65.0,0.95,N,ok
+1,WP481,Baardman (Belman),Baardman,66.0,3.43,Y,ok
+1,WP481,Guitarfish (Bluntnose) (M),Guitarfish (Bluntnose),66.0,1.0,N,ok
+1,WP481,Skate (Biscuit),Skate (Thornback),66.0,5.51,N,ok
+1,WP478,Site Fish (Catfish - White Sea),Catfish (White Sea),66.0,1.0,Y,ok:site_fish_flat
+1,WP478,Site Fish (Gurnard - Cape),Gurnard (Cape),100.0,1.0,Y,ok:site_fish_flat
+1,WP478,Catshark (Striped),Catshark (Striped),100.0,5.55,N,ok
+1,WP478,Catshark (Leopard),Catshark (Leopard),100.0,5.53,N,ok

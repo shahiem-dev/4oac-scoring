@@ -9,13 +9,12 @@ Outputs (under reports/):
   06_overall_individual_position_per_league_<comp>.xlsx
   07_summary_of_fish_caught_<season>.xlsx
 
-Scoring rule (confirmed 2026-04-28 by Shahiem):
+Scoring rule:
   Edible fish     = 4 points per kg
-  Non-edible fish = 1 point per kg
+  Non-edible fish = 1 point per kg, but anything under 1.00 kg scores 0
+  All scores are FLOORED to 2 decimal places.
   Sub-team points = sum of angler points in that sub-team.
   Club points     = sum of all sub-team points in the club.
-
-If non-edibles should score, update NON_EDIBLE_PTS_PER_KG below.
 """
 from __future__ import annotations
 
@@ -80,13 +79,42 @@ def score_catch(weight_kg: float, edible: str) -> float:
 
 # ---- Data load ------------------------------------------------------------
 
+def _load_team_assignments() -> pd.DataFrame:
+    p = SEASON_DIR / "team_assignments.csv"
+    if not p.exists():
+        return pd.DataFrame(columns=["comp_id", "wp_no", "sub_team"])
+    df = pd.read_csv(p, dtype=str).fillna("")
+    df["comp_id"] = df["comp_id"].str.strip()
+    df["wp_no"] = df["wp_no"].str.strip()
+    df["sub_team"] = df["sub_team"].str.strip().str.upper()
+    return df
+
+
+def _attach_sub_team(catches: pd.DataFrame, anglers: pd.DataFrame) -> pd.DataFrame:
+    ta = _load_team_assignments()
+    out = catches.copy()
+    if not ta.empty:
+        out = out.merge(ta.rename(columns={"sub_team": "_assigned"}),
+                        on=["comp_id", "wp_no"], how="left")
+    else:
+        out["_assigned"] = ""
+    out = out.merge(anglers[["wp_no", "sub_team"]].rename(columns={"sub_team": "_default"}),
+                    on="wp_no", how="left")
+    a = out["_assigned"].fillna("").astype(str).str.upper().str.strip()
+    d = out["_default"].fillna("").astype(str).str.upper().str.strip()
+    out["sub_team"] = a.where(a != "", d)
+    return out.drop(columns=["_assigned", "_default"], errors="ignore")
+
+
 def load() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     catches = pd.read_csv(SEASON_DIR / "catches_scored.csv")
     anglers = pd.read_csv(SEASON_DIR / "anglers.csv")
     comps = pd.read_csv(SEASON_DIR / "competitions.csv")
     catches["wp_no"] = catches["wp_no"].astype(str).str.strip()
+    catches["comp_id"] = catches["comp_id"].astype(str).str.strip()
     anglers["wp_no"] = anglers["wp_no"].astype(str).str.strip()
     catches["points"] = catches.apply(lambda r: score_catch(r["weight_kg"], r["edible"]), axis=1)
+    catches = _attach_sub_team(catches, anglers)
     return catches, anglers, comps
 
 
@@ -131,18 +159,34 @@ def angler_full_name(a: pd.Series) -> str:
 # ---- Reports --------------------------------------------------------------
 
 def report_01_club_results(catches, anglers, comp_id: str):
+    """Club results — PNTS A..I per sub-team plus a PNTS A+B subtotal,
+    ranked by PNTS A+B (matches the historical printed format).
+    """
+    sub_teams = list("ABCDEFGHI")
     cc = comp_catches(catches, comp_id).merge(
-        anglers[["wp_no", "club", "sub_team"]], on="wp_no", how="left"
+        anglers[["wp_no", "club"]], on="wp_no", how="left"
     )
-    cc["sub_team"] = cc["sub_team"].fillna("").replace("", "A")
+    cc["sub_team"] = cc["sub_team"].fillna("").astype(str).str.upper().str.strip()
+    cc = cc[cc["club"].notna() & (cc["club"] != "")]
     pivot = cc.pivot_table(index="club", columns="sub_team",
-                           values="points", aggfunc="sum", fill_value=0)
-    pivot.columns = [f"PNTS_{c}" for c in pivot.columns]
-    pivot["TOTAL"] = pivot.sum(axis=1)
-    pivot = pivot.sort_values("TOTAL", ascending=False).reset_index()
-    pivot.insert(0, "RANK", range(1, len(pivot) + 1))
+                           values="points", aggfunc="sum")
+    pivot = pivot.reindex(columns=sub_teams)  # NaN where no team data
+
+    out = pd.DataFrame(index=pivot.index)
+    out["PNTS A"] = pivot["A"]
+    out["PNTS B"] = pivot["B"]
+    ab = pivot["A"].fillna(0) + pivot["B"].fillna(0)
+    ab[pivot["A"].isna() & pivot["B"].isna()] = pd.NA
+    out["PNTS A+B"] = ab
+    for t in sub_teams[2:]:
+        out[f"PNTS {t}"] = pivot[t]
+
+    out = out.sort_values("PNTS A+B", ascending=False, na_position="last").reset_index()
+    out.insert(0, "Pos.", range(1, len(out) + 1))
+    out = out.rename(columns={"club": "CLUB"})
+
     wb = Workbook(); ws = wb.active; ws.title = "Club Results"
-    write_table(ws, pivot, title=f"Club Results — {comp_id}")
+    write_table(ws, out, title=f"Club Results — {comp_id}")
     return save(wb, f"01_club_results_{comp_id.replace(' ', '_')}.xlsx")
 
 
@@ -164,7 +208,16 @@ def report_03_individual_position_in_club(catches, anglers, comp_id: str):
         total_weight=("weight_kg", "sum"),
         points=("points", "sum"),
     )
-    out = anglers.merge(by_angler, on="wp_no", how="left").fillna({"catches": 0, "total_weight": 0, "points": 0})
+    out = anglers.merge(by_angler, on="wp_no", how="left").fillna(
+        {"catches": 0, "total_weight": 0, "points": 0})
+    # Per-comp sub_team override
+    ta_comp = _load_team_assignments()
+    ta_comp = ta_comp[ta_comp["comp_id"] == comp_id][["wp_no", "sub_team"]] \
+        .rename(columns={"sub_team": "_assigned"})
+    out = out.merge(ta_comp, on="wp_no", how="left")
+    out["sub_team"] = out["_assigned"].where(out["_assigned"].notna() & (out["_assigned"] != ""),
+                                              out["sub_team"])
+    out = out.drop(columns=["_assigned"], errors="ignore")
     out["angler"] = out["first_name"] + " " + out["surname"]
     out = out[["club", "sub_team", "wp_no", "angler", "league_code",
                "catches", "total_weight", "points"]]
