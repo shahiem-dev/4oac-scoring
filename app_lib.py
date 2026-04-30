@@ -526,16 +526,24 @@ def apply_filters(catches: pd.DataFrame, anglers: pd.DataFrame,
 
 def highlight_leader(df: pd.DataFrame):
     """Pandas Styler that highlights the first row (gold) — leader/winner row."""
+    from theme import load_theme
+    t = load_theme()
+    bg = t.get("leader_highlight", "#FFF5CC")
+
     def _row(_):
         styles = pd.DataFrame("", index=df.index, columns=df.columns)
         if len(df):
-            styles.iloc[0, :] = "background-color: #fff5cc; font-weight: 600;"
+            styles.iloc[0, :] = f"background-color: {bg}; font-weight: 600;"
         return styles
     return df.style.apply(_row, axis=None)
 
 
 def render_season_sidebar() -> str:
-    """Sidebar widget shown on every page — switches the active season."""
+    """Sidebar widget shown on every page — switches the active season.
+    Also injects the global theme CSS so every page is styled consistently.
+    """
+    from theme import inject_css
+    inject_css()
     active = get_active_season()
     with st.sidebar:
         st.markdown("### Season")

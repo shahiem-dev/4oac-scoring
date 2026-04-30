@@ -213,40 +213,49 @@ def get_trend_data(dataset: str, scored: pd.DataFrame, anglers: pd.DataFrame, *,
 
 def render_chart(data: pd.DataFrame, chart_type: str, *, title: str = "",
                  value_label: str = "Value", category_label: str = "Category"):
-    """Return a Plotly Figure for the given DataFrame.
+    """Return a Plotly Figure for the given DataFrame, styled with the active theme.
 
     For chart_type == "Line", `data` must be long-format with a Comp column.
     Bar / Pie operate on flat (Category, Value) data.
     """
+    from theme import chart_palette, load_theme, plotly_layout
+    theme = load_theme()
+    palette = chart_palette(theme)
+    primary, accent = theme["chart_primary"], theme["chart_accent"]
+
     if data is None or data.empty:
         fig = px.bar(title=f"{title} — no data")
-        fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=420)
+        fig.update_layout(margin=dict(l=10, r=10, t=40, b=10), height=420,
+                          **plotly_layout(theme))
         return fig
 
     chart_type = chart_type.lower()
 
     if chart_type == "pie":
         fig = px.pie(data, names="Category", values="Value", hole=0.35,
-                     title=title)
+                     title=title, color_discrete_sequence=palette)
         fig.update_traces(textposition="inside", textinfo="percent+label",
                           hovertemplate="%{label}: %{value:.2f}<extra></extra>")
     elif chart_type == "line":
         if "Comp" not in data.columns:
             fig = px.line(data, x="Category", y="Value", markers=True,
-                          title=title)
+                          title=title, color_discrete_sequence=palette)
         else:
             fig = px.line(data, x="Comp", y="Value", color="Category",
-                          markers=True, title=title)
+                          markers=True, title=title,
+                          color_discrete_sequence=palette)
         fig.update_layout(xaxis_title="Competition", yaxis_title=value_label,
                           hovermode="x unified")
     else:  # default = bar
         fig = px.bar(data, x="Category", y="Value", text="Value",
-                     color="Value", color_continuous_scale="Blues",
+                     color="Value",
+                     color_continuous_scale=[[0, primary], [1, accent]],
                      title=title)
         fig.update_traces(texttemplate="%{text:.2f}", textposition="outside",
                           hovertemplate=f"%{{x}}<br>{value_label}: %{{y:.2f}}<extra></extra>")
         fig.update_layout(xaxis_title=category_label, yaxis_title=value_label,
                           coloraxis_showscale=False)
 
-    fig.update_layout(margin=dict(l=10, r=10, t=50, b=10), height=480)
+    fig.update_layout(margin=dict(l=10, r=10, t=50, b=10), height=480,
+                      **plotly_layout(theme))
     return fig
