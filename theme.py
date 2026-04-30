@@ -165,6 +165,24 @@ def _css(theme: dict[str, str]) -> str:
           color: {t['page_heading']};
           border-bottom-color: {t['chart_accent']};
       }}
+
+      /* Lock sidebar selectbox display text to black so it stays readable
+         on any sidebar background, regardless of theme changes. Forces every
+         descendant — the value div, the wrapper span, and the hidden input. */
+      [data-testid="stSidebar"] [data-testid="stSelectbox"],
+      [data-testid="stSidebar"] [data-testid="stSelectbox"] *,
+      [data-testid="stSidebar"] [data-baseweb="select"],
+      [data-testid="stSidebar"] [data-baseweb="select"] *,
+      [data-testid="stSidebar"] [data-baseweb="select"] input,
+      [data-testid="stSidebar"] [data-baseweb="select"] div[role="combobox"],
+      [data-testid="stSidebar"] [data-baseweb="select"] div[role="combobox"] * {{
+          color: #000 !important;
+          -webkit-text-fill-color: #000 !important;
+      }}
+      /* Keep the chevron icon visible (it's an SVG using fill) */
+      [data-testid="stSidebar"] [data-baseweb="select"] svg {{
+          fill: #000 !important;
+      }}
     </style>
     """
 
