@@ -5,14 +5,18 @@ import pandas as pd
 import streamlit as st
 
 from app_lib import (CLUBS, SUB_TEAMS, comp_options, load_anglers, load_comps,
-                     load_team_assignments, render_season_sidebar, save_comps,
-                     save_team_assignments)
+                     load_team_assignments, load_trophy_nominees,
+                     render_season_sidebar, save_comps,
+                     save_team_assignments, save_trophy_nominees)
+from trophies import first_comp_in_month
 
 st.set_page_config(page_title="Competitions · WCSAA League", page_icon="📅", layout="wide")
 active = render_season_sidebar()
 st.title(f"📅 Competitions — {active}")
 
-tab_sched, tab_teams = st.tabs(["📋 Schedule", "👥 Team Selection (per comp)"])
+tab_sched, tab_teams, tab_nom = st.tabs(
+    ["📋 Schedule", "👥 Team Selection (per comp)",
+     "🏅 Trophy Nominees (Sir Drummond Chapman)"])
 
 # ---- Schedule -----------------------------------------------------------
 with tab_sched:
@@ -102,3 +106,78 @@ with tab_teams:
         save_team_assignments(keep_other)
         st.success(f"Cleared all team assignments for {comp}.")
         st.rerun()
+
+# ---- Sir Drummond Chapman nominees -------------------------------------
+with tab_nom:
+    st.caption("**Sir Drummond Chapman Trophy** — each club nominates **4 anglers** "
+               "to compete in the **first January competition**. Only their points "
+               "in that comp count toward the trophy.")
+    comps_df = load_comps()
+    jan_comp = first_comp_in_month(comps_df, 1)
+    if not jan_comp:
+        st.warning("No competition with a date in January found. Add the comp date "
+                   "in the Schedule tab first (format YYYY-MM-DD).")
+    else:
+        st.info(f"Target comp: **{jan_comp}**")
+        anglers = load_anglers()
+        if anglers.empty:
+            st.info("No anglers yet — add them on the **Clubs** page.")
+        else:
+            nom_all = load_trophy_nominees()
+            sdc = nom_all[(nom_all["trophy"] == "SDC") &
+                          (nom_all["comp_id"] == jan_comp)]
+            club_pick = st.selectbox("Club", CLUBS, key="sdc_club")
+            club_anglers = anglers[anglers["club"] == club_pick].copy()
+            if club_anglers.empty:
+                st.info(f"No anglers in {club_pick} yet.")
+            else:
+                club_anglers["Angler"] = (club_anglers["first_name"].fillna("") + " "
+                                           + club_anglers["surname"].fillna("")).str.strip()
+                already = sdc[sdc["club"] == club_pick]["wp_no"].tolist()
+                club_anglers["nominee"] = club_anglers["wp_no"].isin(already)
+                view = club_anglers[["wp_no", "Angler", "league_code", "nominee"]] \
+                    .sort_values("Angler").reset_index(drop=True)
+                edited = st.data_editor(
+                    view, hide_index=True, use_container_width=True,
+                    key=f"sdc_edit_{club_pick}",
+                    column_config={
+                        "wp_no": st.column_config.TextColumn("WP No", disabled=True),
+                        "Angler": st.column_config.TextColumn("Angler", disabled=True),
+                        "league_code": st.column_config.TextColumn("Lg", disabled=True),
+                        "nominee": st.column_config.CheckboxColumn(
+                            "Nominee (max 4)", help="Tick exactly 4 per club"),
+                    },
+                )
+                picked = edited[edited["nominee"]]
+                n_picked = len(picked)
+                if n_picked > 4:
+                    st.error(f"Selected {n_picked} — must be 4 or fewer.")
+                else:
+                    st.caption(f"Selected: **{n_picked}** of 4")
+
+                if st.button("💾 Save nominees for this club",
+                             type="primary", disabled=(n_picked > 4),
+                             key=f"sdc_save_{club_pick}"):
+                    keep = nom_all[~((nom_all["trophy"] == "SDC") &
+                                     (nom_all["comp_id"] == jan_comp) &
+                                     (nom_all["club"] == club_pick))]
+                    new_rows = picked[["wp_no"]].assign(
+                        trophy="SDC", comp_id=jan_comp, club=club_pick)
+                    save_trophy_nominees(pd.concat([keep, new_rows], ignore_index=True))
+                    st.success(f"Saved {n_picked} SDC nominee(s) for {club_pick}.")
+                    st.rerun()
+
+            st.divider()
+            st.markdown("**All current SDC nominees**")
+            if sdc.empty:
+                st.info("No nominees set yet.")
+            else:
+                pretty = sdc.merge(
+                    anglers.assign(Angler=lambda d: (d["first_name"].fillna("") + " "
+                                                      + d["surname"].fillna("")).str.strip())[
+                        ["wp_no", "Angler"]],
+                    on="wp_no", how="left")
+                pretty = pretty[["club", "wp_no", "Angler"]].rename(
+                    columns={"club": "Club", "wp_no": "WP No"})
+                st.dataframe(pretty.sort_values(["Club", "Angler"]),
+                             use_container_width=True, hide_index=True)

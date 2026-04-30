@@ -178,6 +178,33 @@ def comps_csv() -> Path: return season_dir() / "competitions.csv"
 def catches_raw_csv() -> Path: return season_dir() / "catches_raw.csv"
 def catches_scored_csv() -> Path: return season_dir() / "catches_scored.csv"
 def team_assignments_csv() -> Path: return season_dir() / "team_assignments.csv"
+def trophy_nominees_csv() -> Path: return season_dir() / "trophy_nominees.csv"
+
+
+# ---- Trophy nominees -----------------------------------------------------
+
+NOMINEE_COLS = ["trophy", "comp_id", "club", "wp_no"]
+
+def load_trophy_nominees() -> pd.DataFrame:
+    p = trophy_nominees_csv()
+    if not p.exists():
+        return pd.DataFrame(columns=NOMINEE_COLS)
+    df = pd.read_csv(p, dtype=str).fillna("")
+    for c in NOMINEE_COLS:
+        if c not in df.columns: df[c] = ""
+    return df[NOMINEE_COLS]
+
+
+def save_trophy_nominees(df: pd.DataFrame) -> None:
+    df = df.copy()
+    for c in NOMINEE_COLS:
+        if c not in df.columns: df[c] = ""
+    df = df[NOMINEE_COLS]
+    for c in NOMINEE_COLS:
+        df[c] = df[c].astype(str).str.strip()
+    df = df[(df["trophy"] != "") & (df["wp_no"] != "")]
+    df = df.drop_duplicates(NOMINEE_COLS).reset_index(drop=True)
+    df.to_csv(trophy_nominees_csv(), index=False)
 
 
 # ---- Per-competition team assignments ------------------------------------
