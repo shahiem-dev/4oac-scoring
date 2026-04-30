@@ -75,7 +75,7 @@ with st.expander("Scoring rule"):
     st.markdown(f"""
 - **Edible fish** (Bony Fishes) = **{EDIBLE_PTS_PER_KG:.0f} points per kg** — under **0.50 kg** scores 0
 - **Non-edible fish** (Sharks / Rays / Guitarfish) = **{NON_EDIBLE_PTS_PER_KG:.0f} point per kg** — under **1.00 kg** scores 0
-- **Gurnards & Barbel** = **1 point per fish flat** (overrides weight + edible)
+- **Gurnards & Catfish (Barbel)** = **1 point per fish flat** (overrides weight + edible)
 - **St Joseph** (Elephant Fish) = treated as **edible**
 - All scores are **floored to 2 decimal places** (e.g. 1.499 kg × 4 = 5.99)
 - **Site Fish (...)** = 1.00 kg flat (then × points-per-kg above)

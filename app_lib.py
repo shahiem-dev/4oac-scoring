@@ -43,7 +43,7 @@ EDIBLE_MIN_KG = 0.5      # edible catches under this threshold score 0
 NON_EDIBLE_MIN_KG = 1.0  # non-edible catches under this threshold score 0
 # Species whose canonical name (case-insensitive) starts with any of these
 # patterns score a flat 1 point per fish, regardless of weight or edible flag.
-FLAT_PT_PATTERNS = ("gurnard", "barbel")
+FLAT_PT_PATTERNS = ("gurnard", "catfish")  # Barbel is aliased to Catfish (White Sea)
 FLAT_PT_VALUE = 1.0
 
 
