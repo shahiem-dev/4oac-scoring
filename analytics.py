@@ -12,7 +12,20 @@ A "dataset" is an aggregation shape (cat, value) ready to plot or table.
 """
 from __future__ import annotations
 
+import site
+import sys
+
 import pandas as pd
+
+try:
+    import plotly.express as px  # noqa: F401
+except ModuleNotFoundError:
+    usp = site.getusersitepackages()
+    paths = usp if isinstance(usp, list) else [usp]
+    for p in paths:
+        if p and p not in sys.path:
+            sys.path.insert(0, p)
+
 import plotly.express as px
 
 from standings import apply_best_n, per_entity_per_comp
