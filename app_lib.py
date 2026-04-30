@@ -39,7 +39,12 @@ from scoring import Scorer  # noqa: E402
 # Scoring rule (mirrors scripts/generate_reports.py)
 EDIBLE_PTS_PER_KG = 4.0
 NON_EDIBLE_PTS_PER_KG = 1.0
+EDIBLE_MIN_KG = 0.5      # edible catches under this threshold score 0
 NON_EDIBLE_MIN_KG = 1.0  # non-edible catches under this threshold score 0
+# Species whose canonical name (case-insensitive) starts with any of these
+# patterns score a flat 1 point per fish, regardless of weight or edible flag.
+FLAT_PT_PATTERNS = ("gurnard", "barbel")
+FLAT_PT_VALUE = 1.0
 
 
 def floor2(x: float) -> float:
@@ -220,9 +225,29 @@ def resolve_sub_team(catches: pd.DataFrame, anglers: pd.DataFrame) -> pd.DataFra
 
 # ---- Scoring -------------------------------------------------------------
 
-def points_for(weight_kg: float, edible: str) -> float:
+def is_flat_pt_species(canonical: str | None) -> bool:
+    if not canonical:
+        return False
+    n = str(canonical).strip().lower()
+    return any(n.startswith(p) for p in FLAT_PT_PATTERNS)
+
+
+def points_for(weight_kg: float, edible: str, canonical: str | None = None) -> float:
+    """Compute points for a catch.
+
+    Rules (in order of precedence):
+      1. Gurnards / Barbel → flat 1 point per fish (overrides weight + edible).
+      2. Edible < 0.5 kg → 0 points.
+      3. Non-edible < 1 kg → 0 points.
+      4. Edible: weight × 4 pts/kg, floored to 2 dp.
+      5. Non-edible: weight × 1 pt/kg, floored to 2 dp.
+    """
+    if is_flat_pt_species(canonical):
+        return FLAT_PT_VALUE
     w = float(weight_kg or 0.0)
     is_edible = str(edible).upper() == "Y"
+    if is_edible and w < EDIBLE_MIN_KG:
+        return 0.00
     if not is_edible and w < NON_EDIBLE_MIN_KG:
         return 0.00
     rate = EDIBLE_PTS_PER_KG if is_edible else NON_EDIBLE_PTS_PER_KG
@@ -331,7 +356,10 @@ def load_catches_scored() -> pd.DataFrame:
         return df
     df["wp_no"] = df["wp_no"].astype(str).str.strip()
     df["comp_id"] = df["comp_id"].astype(str).str.strip()
-    df["points"] = df.apply(lambda r: points_for(r["weight_kg"], r["edible"]), axis=1)
+    df["points"] = df.apply(
+        lambda r: points_for(r["weight_kg"], r["edible"], r.get("canonical_species")),
+        axis=1,
+    )
     return df
 
 

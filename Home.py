@@ -73,12 +73,14 @@ st.divider()
 
 with st.expander("Scoring rule"):
     st.markdown(f"""
-- **Edible fish** (Bony Fishes) = **{EDIBLE_PTS_PER_KG:.0f} points per kg**
+- **Edible fish** (Bony Fishes) = **{EDIBLE_PTS_PER_KG:.0f} points per kg** — under **0.50 kg** scores 0
 - **Non-edible fish** (Sharks / Rays / Guitarfish) = **{NON_EDIBLE_PTS_PER_KG:.0f} point per kg** — under **1.00 kg** scores 0
-- All scores are **floored to 2 decimal places**
+- **Gurnards & Barbel** = **1 point per fish flat** (overrides weight + edible)
+- **St Joseph** (Elephant Fish) = treated as **edible**
+- All scores are **floored to 2 decimal places** (e.g. 1.499 kg × 4 = 5.99)
 - **Site Fish (...)** = 1.00 kg flat (then × points-per-kg above)
 - **`< X kg`** suffix = 0 points (sub-minimum)
-- Catshark (Brown), Catshark (Puffadder) = 0 points
+- Catshark (Brown), Catshark (Puffadder) = 0 points (zero-score list)
 - Weight: `W_kg = exp(log_a + b · ln(length_cm))` — SASAA formula
 """)
 

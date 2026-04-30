@@ -84,7 +84,7 @@ with st.form("add_catch", clear_on_submit=False):
         if res.canonical_name is None and res.note == "error:unknown_species":
             st.error(f"Saved, but **{sp}** is unmatched — scoring 0 until the species master/aliases are updated.")
         else:
-            pts = points_for(res.weight_kg, res.edible)
+            pts = points_for(res.weight_kg, res.edible, res.canonical_name)
             st.success(f"✓ {ss.cap_comp} · {ss.cap_angler} · {sp} @ {length}cm → "
                        f"**{res.weight_kg:.2f} kg** = **{pts:.2f} pts** ({res.note})")
 
