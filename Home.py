@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app_lib import (EDIBLE_PTS_PER_KG, NON_EDIBLE_PTS_PER_KG, get_logo_bytes,
-                     load_anglers, load_catches_scored, load_comps,
-                     manage_logo, render_season_sidebar)
+from app_lib import (EDIBLE_PTS_PER_KG, NON_EDIBLE_PTS_PER_KG, apply_filters,
+                     get_logo_bytes, load_anglers, load_catches_scored,
+                     load_comps, manage_logo, render_global_filters,
+                     render_season_sidebar)
 from standings import BEST_N_DEFAULT, apply_best_n, per_entity_per_comp
 
 st.set_page_config(page_title="WCSAA League", page_icon="🎣", layout="wide")
@@ -37,6 +38,11 @@ st.divider()
 anglers = load_anglers()
 comps = load_comps()
 catches = load_catches_scored()
+
+# Global filters in sidebar (Comp / Club / Division)
+if not catches.empty:
+    filters = render_global_filters(catches, anglers)
+    catches, anglers = apply_filters(catches, anglers, filters)
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Competitions", len(comps))

@@ -8,7 +8,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from app_lib import (DIVISIONS, load_anglers, load_catches_scored, load_comps,
+from app_lib import (DIVISIONS, apply_filters, load_anglers,
+                     load_catches_scored, load_comps, render_global_filters,
                      render_season_sidebar)
 
 st.set_page_config(page_title="Leaderboards · WCSAA League",
@@ -26,6 +27,12 @@ if catches.empty:
     st.info("No catches yet.")
     st.stop()
 
+filters = render_global_filters(catches, anglers)
+catches, anglers = apply_filters(catches, anglers, filters)
+if catches.empty:
+    st.warning("No catches match the current filters.")
+    st.stop()
+
 # ---- Enrich with angler + club + division ------------------------------
 cc = catches.merge(
     anglers[["wp_no", "first_name", "surname", "club", "league_code"]],
@@ -40,28 +47,8 @@ cc["edible"] = cc["edible"].fillna("").astype(str).str.upper()
 cc["status"] = cc["status"].fillna("").astype(str)
 cc["valid"] = cc["status"].str.startswith("ok")  # resolved + scored
 
-# ---- Sidebar filters ----------------------------------------------------
-st.sidebar.markdown("### Filters")
-comp_pick = st.sidebar.multiselect("Competition", sorted(catches["comp_id"].unique()),
-                                   default=[])
-club_pick = st.sidebar.multiselect("Club", sorted(cc["club"].unique()), default=[])
-div_codes = sorted([d for d in cc["league_code"].unique() if d])
-div_pick = st.sidebar.multiselect(
-    "Division", div_codes,
-    format_func=lambda c: f"{c} — {DIVISIONS.get(c, '')}",
-    default=[],
-)
-
 f = cc.copy()
-if comp_pick: f = f[f["comp_id"].isin(comp_pick)]
-if club_pick: f = f[f["club"].isin(club_pick)]
-if div_pick:  f = f[f["league_code"].isin(div_pick)]
-
-st.caption(f"Showing **{len(f)}** of {len(cc)} catches after filters.")
-
-if f.empty:
-    st.warning("No catches match the current filters.")
-    st.stop()
+st.caption(f"Showing **{len(f)}** catches (use sidebar filters to narrow).")
 
 # ---- Heaviest catches ---------------------------------------------------
 st.subheader("🐟 Heaviest catches")

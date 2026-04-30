@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app_lib import (load_anglers, load_catches_scored, load_comps,
-                     load_team_assignments, load_trophy_nominees,
+from app_lib import (apply_filters, highlight_leader, load_anglers,
+                     load_catches_scored, load_comps, load_team_assignments,
+                     load_trophy_nominees, render_global_filters,
                      render_season_sidebar)
 from standings import BEST_N_DEFAULT
 from trophies import (blue_ray, champion_division, first_comp_in_month,
@@ -32,6 +33,12 @@ if catches.empty:
     st.info("No catches yet — trophies will populate as catches are recorded.")
     st.stop()
 
+filters = render_global_filters(catches, anglers)
+catches, anglers = apply_filters(catches, anglers, filters)
+if catches.empty:
+    st.warning("No catches match the current filters.")
+    st.stop()
+
 comp_order = sorted(catches["comp_id"].unique().tolist())
 jan_comp = first_comp_in_month(comps, 1)
 feb_comp = first_comp_in_month(comps, 2)
@@ -42,7 +49,7 @@ def _show(df, leader_msg=None):
     if df is None or len(df) == 0:
         st.info("No data yet for this trophy.")
         return
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(highlight_leader(df), use_container_width=True, hide_index=True)
     if leader_msg and len(df):
         st.success(leader_msg)
 

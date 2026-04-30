@@ -4,7 +4,8 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from app_lib import (DIVISIONS, load_anglers, load_catches_scored, load_comps,
+from app_lib import (DIVISIONS, apply_filters, load_anglers,
+                     load_catches_scored, load_comps, render_global_filters,
                      render_season_sidebar, resolve_sub_team)
 from standings import (BEST_N_DEFAULT, apply_best_n, per_entity_per_comp,
                        style_dropped)
@@ -19,6 +20,12 @@ comps = load_comps()
 
 if catches.empty:
     st.info("No catches yet.")
+    st.stop()
+
+filters = render_global_filters(catches, anglers)
+catches, anglers = apply_filters(catches, anglers, filters)
+if catches.empty:
+    st.warning("No catches match the current filters.")
     st.stop()
 
 cc = resolve_sub_team(catches, anglers).merge(

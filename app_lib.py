@@ -469,6 +469,71 @@ def manage_logo(key: str, *, label: str = "Logo", width: int = 180,
             st.rerun()
 
 
+def render_global_filters(catches: pd.DataFrame, anglers: pd.DataFrame) -> dict:
+    """Render Comp/Club/Division multiselects in the sidebar, persist to
+    st.session_state, and return the current filter dict.
+
+    Filters survive page navigation (stored under keys gf_comp / gf_club / gf_div).
+    """
+    ss = st.session_state
+    ss.setdefault("gf_comp", [])
+    ss.setdefault("gf_club", [])
+    ss.setdefault("gf_div", [])
+
+    comp_opts = sorted(catches["comp_id"].astype(str).unique().tolist()) if len(catches) else []
+    club_opts = sorted([c for c in anglers.get("club", pd.Series(dtype=str)).unique() if c])
+    div_codes = list(DIVISIONS.keys())
+
+    with st.sidebar:
+        st.markdown("### Filters")
+        ss.gf_comp = st.multiselect("Competition", comp_opts,
+                                    default=[c for c in ss.gf_comp if c in comp_opts],
+                                    key="_gf_comp_w")
+        ss.gf_club = st.multiselect("Club", club_opts,
+                                    default=[c for c in ss.gf_club if c in club_opts],
+                                    key="_gf_club_w")
+        ss.gf_div = st.multiselect(
+            "Division", div_codes,
+            default=[d for d in ss.gf_div if d in div_codes],
+            format_func=lambda c: f"{c} — {DIVISIONS.get(c, '')}",
+            key="_gf_div_w",
+        )
+        if any([ss.gf_comp, ss.gf_club, ss.gf_div]):
+            if st.button("✖ Clear filters", use_container_width=True,
+                         key="_gf_clear"):
+                ss.gf_comp = []; ss.gf_club = []; ss.gf_div = []
+                st.rerun()
+    return {"comp": ss.gf_comp, "club": ss.gf_club, "division": ss.gf_div}
+
+
+def apply_filters(catches: pd.DataFrame, anglers: pd.DataFrame,
+                  filters: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return (filtered_catches, filtered_anglers) — both narrowed by the
+    same set of filters so downstream joins stay consistent."""
+    a = anglers.copy()
+    if filters.get("club"):
+        a = a[a["club"].isin(filters["club"])]
+    if filters.get("division"):
+        a = a[a["league_code"].isin(filters["division"])]
+    keep_wp = set(a["wp_no"]) if not a.empty else set()
+    c = catches.copy()
+    if filters.get("comp"):
+        c = c[c["comp_id"].isin(filters["comp"])]
+    if filters.get("club") or filters.get("division"):
+        c = c[c["wp_no"].isin(keep_wp)]
+    return c.reset_index(drop=True), a.reset_index(drop=True)
+
+
+def highlight_leader(df: pd.DataFrame):
+    """Pandas Styler that highlights the first row (gold) — leader/winner row."""
+    def _row(_):
+        styles = pd.DataFrame("", index=df.index, columns=df.columns)
+        if len(df):
+            styles.iloc[0, :] = "background-color: #fff5cc; font-weight: 600;"
+        return styles
+    return df.style.apply(_row, axis=None)
+
+
 def render_season_sidebar() -> str:
     """Sidebar widget shown on every page — switches the active season."""
     active = get_active_season()
