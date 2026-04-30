@@ -167,22 +167,32 @@ def _css(theme: dict[str, str]) -> str:
       }}
 
       /* Lock sidebar selectbox display text to black so it stays readable
-         on any sidebar background, regardless of theme changes. Forces every
-         descendant — the value div, the wrapper span, and the hidden input. */
-      [data-testid="stSidebar"] [data-testid="stSelectbox"],
-      [data-testid="stSidebar"] [data-testid="stSelectbox"] *,
-      [data-testid="stSidebar"] [data-baseweb="select"],
-      [data-testid="stSidebar"] [data-baseweb="select"] *,
-      [data-testid="stSidebar"] [data-baseweb="select"] input,
-      [data-testid="stSidebar"] [data-baseweb="select"] div[role="combobox"],
-      [data-testid="stSidebar"] [data-baseweb="select"] div[role="combobox"] * {{
+         on any sidebar background, regardless of theme changes. Hits every
+         possible BaseWeb internal element with maximum specificity. */
+      section[data-testid="stSidebar"] div[data-testid="stSelectbox"],
+      section[data-testid="stSidebar"] div[data-testid="stSelectbox"] *,
+      section[data-testid="stSidebar"] div[data-baseweb="select"],
+      section[data-testid="stSidebar"] div[data-baseweb="select"] *,
+      section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+      section[data-testid="stSidebar"] div[data-baseweb="select"] > div > div,
+      section[data-testid="stSidebar"] div[data-baseweb="select"] input,
+      section[data-testid="stSidebar"] div[data-baseweb="select"] [class*="valueContainer"],
+      section[data-testid="stSidebar"] div[data-baseweb="select"] [class*="ValueContainer"],
+      section[data-testid="stSidebar"] div[data-baseweb="select"] [class*="singleValue"],
+      section[data-testid="stSidebar"] div[data-baseweb="select"] [class*="SingleValue"],
+      section[data-testid="stSidebar"] div[data-baseweb="select"] div[role="combobox"],
+      section[data-testid="stSidebar"] div[data-baseweb="select"] div[role="combobox"] * {{
           color: #000 !important;
           -webkit-text-fill-color: #000 !important;
+          opacity: 1 !important;
       }}
-      /* Keep the chevron icon visible (it's an SVG using fill) */
-      [data-testid="stSidebar"] [data-baseweb="select"] svg {{
+      /* Keep the chevron icon visible */
+      section[data-testid="stSidebar"] div[data-baseweb="select"] svg {{
           fill: #000 !important;
+          color: #000 !important;
       }}
+      /* The label above the selectbox ("Active") inherits sidebar heading
+         color — leave it. We only force the value text + chevron. */
     </style>
     """
 
