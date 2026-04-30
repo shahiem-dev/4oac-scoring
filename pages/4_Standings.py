@@ -6,6 +6,8 @@ import streamlit as st
 
 from app_lib import (DIVISIONS, load_anglers, load_catches_scored, load_comps,
                      render_season_sidebar, resolve_sub_team)
+from standings import (BEST_N_DEFAULT, apply_best_n, per_entity_per_comp,
+                       style_dropped)
 
 st.set_page_config(page_title="Standings · WCSAA League", page_icon="🏆", layout="wide")
 active = render_season_sidebar()
@@ -27,6 +29,18 @@ cc["Angler"] = (cc["first_name"].fillna("") + " " + cc["surname"].fillna("")).st
 cc.loc[cc["Angler"] == "", "Angler"] = "(unknown)"
 comp_order = sorted(catches["comp_id"].unique().tolist())
 SUB_TEAMS = list("ABCDEFGHI")
+
+# ---- Best-N toggle (applies across all tabs) ----------------------------
+st.sidebar.markdown("### Scoring mode")
+use_best_n = st.sidebar.toggle(
+    f"Best {BEST_N_DEFAULT} of {len(comp_order)}",
+    value=False,
+    help=f"When ON: each entity's lowest scores are dropped so only the best "
+         f"{BEST_N_DEFAULT} comps count toward the total. Dropped cells are "
+         f"struck through in the per-comp tables.",
+)
+mode_label = f"Best {BEST_N_DEFAULT}" if use_best_n else "All comps"
+st.caption(f"Scoring mode: **{mode_label}** ({len(comp_order)} competition(s) recorded)")
 
 tab_club, tab_ind, tab_league, tab_drill = st.tabs(
     ["By Club", "Individuals", "Per Division", "Club Drilldown"])
@@ -51,30 +65,41 @@ with tab_club:
                        "club_subteam_standings.csv", "text/csv")
 
     st.markdown("##### Per-comp Totals")
-    pivot = cc.pivot_table(index="club", columns="comp_id", values="points",
-                           aggfunc="sum", fill_value=0)
-    pivot = pivot.reindex(columns=comp_order, fill_value=0)
-    pivot["Total"] = pivot.sum(axis=1)
+    matrix = per_entity_per_comp(cc, "club", comp_order)
+    _, dropped, total = apply_best_n(matrix, n=BEST_N_DEFAULT if use_best_n else 10**6)
+    pivot = matrix.copy()
+    pivot["Total"] = total
     pivot = pivot.sort_values("Total", ascending=False).reset_index()
     pivot.insert(0, "Pos.", range(1, len(pivot) + 1))
     pivot = pivot.rename(columns={"club": "Club"})
-    st.dataframe(pivot, use_container_width=True, hide_index=True)
+    if use_best_n and not dropped.empty:
+        dropped_aligned = dropped.reindex(pivot["Club"]).reset_index(drop=True)
+        styler = style_dropped(pivot, dropped_aligned, comp_order)
+        st.dataframe(styler, use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(pivot, use_container_width=True, hide_index=True)
     st.download_button("⬇ Download CSV", pivot.to_csv(index=False).encode(),
                        "club_per_comp_standings.csv", "text/csv")
 
 with tab_ind:
-    pivot = cc.pivot_table(index=["wp_no", "Angler", "club", "league_code"],
-                           columns="comp_id", values="points",
-                           aggfunc="sum", fill_value=0).reset_index()
-    for c in comp_order:
-        if c not in pivot.columns: pivot[c] = 0
-    pivot["Total"] = pivot[comp_order].sum(axis=1) if comp_order else 0
-    pivot = pivot.sort_values("Total", ascending=False).reset_index(drop=True)
+    matrix = per_entity_per_comp(cc, "wp_no", comp_order)
+    _, dropped, total = apply_best_n(matrix, n=BEST_N_DEFAULT if use_best_n else 10**6)
+    pivot = matrix.copy()
+    pivot["Total"] = total
+    meta = (cc.drop_duplicates("wp_no")[["wp_no", "Angler", "club", "league_code"]]
+              .set_index("wp_no"))
+    pivot = pivot.join(meta).sort_values("Total", ascending=False).reset_index()
     pivot.insert(0, "Rank", range(1, len(pivot) + 1))
     pivot = pivot.rename(columns={"wp_no": "WP No", "club": "Club", "league_code": "Lg"})
     cols = ["Rank", "WP No", "Angler", "Club", "Lg"] + comp_order + ["Total"]
-    st.dataframe(pivot[cols], use_container_width=True, hide_index=True)
-    st.download_button("⬇ Download CSV", pivot[cols].to_csv(index=False).encode(),
+    pivot = pivot[cols]
+    if use_best_n and not dropped.empty:
+        dropped_aligned = dropped.reindex(pivot["WP No"]).reset_index(drop=True)
+        styler = style_dropped(pivot, dropped_aligned, comp_order)
+        st.dataframe(styler, use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(pivot, use_container_width=True, hide_index=True)
+    st.download_button("⬇ Download CSV", pivot.to_csv(index=False).encode(),
                        "individual_standings.csv", "text/csv")
 
 with tab_league:
@@ -84,32 +109,44 @@ with tab_league:
     for lg in leagues:
         st.markdown(f"### {lg} — {DIVISIONS.get(lg.upper(), '')}")
         sub = cc[cc["league_code"] == lg]
-        p = sub.pivot_table(index=["wp_no", "Angler", "club"],
-                            columns="comp_id", values="points",
-                            aggfunc="sum", fill_value=0).reset_index()
-        for c in comp_order:
-            if c not in p.columns: p[c] = 0
-        p["Total"] = p[comp_order].sum(axis=1) if comp_order else 0
-        p = p.sort_values("Total", ascending=False).reset_index(drop=True)
+        matrix = per_entity_per_comp(sub, "wp_no", comp_order)
+        _, dropped, total = apply_best_n(matrix, n=BEST_N_DEFAULT if use_best_n else 10**6)
+        p = matrix.copy(); p["Total"] = total
+        meta = (sub.drop_duplicates("wp_no")[["wp_no", "Angler", "club"]]
+                .set_index("wp_no"))
+        p = p.join(meta).sort_values("Total", ascending=False).reset_index()
         p.insert(0, "Rank", range(1, len(p) + 1))
         p = p.rename(columns={"wp_no": "WP No", "club": "Club"})
-        st.dataframe(p, use_container_width=True, hide_index=True)
+        cols = ["Rank", "WP No", "Angler", "Club"] + comp_order + ["Total"]
+        p = p[cols]
+        if use_best_n and not dropped.empty:
+            d = dropped.reindex(p["WP No"]).reset_index(drop=True)
+            st.dataframe(style_dropped(p, d, comp_order),
+                         use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(p, use_container_width=True, hide_index=True)
 
 with tab_drill:
     clubs = sorted(cc["club"].unique().tolist())
     club = st.selectbox("Pick a club", clubs)
     sub = cc[cc["club"] == club]
-    p = sub.pivot_table(index=["wp_no", "Angler", "league_code"],
-                        columns="comp_id", values="points",
-                        aggfunc="sum", fill_value=0).reset_index()
-    for c in comp_order:
-        if c not in p.columns: p[c] = 0
-    p["Total"] = p[comp_order].sum(axis=1) if comp_order else 0
-    p = p.sort_values("Total", ascending=False).reset_index(drop=True)
+    matrix = per_entity_per_comp(sub, "wp_no", comp_order)
+    _, dropped, total = apply_best_n(matrix, n=BEST_N_DEFAULT if use_best_n else 10**6)
+    p = matrix.copy(); p["Total"] = total
+    meta = (sub.drop_duplicates("wp_no")[["wp_no", "Angler", "league_code"]]
+            .set_index("wp_no"))
+    p = p.join(meta).sort_values("Total", ascending=False).reset_index()
     p.insert(0, "Rank", range(1, len(p) + 1))
     p = p.rename(columns={"wp_no": "WP No", "league_code": "Lg"})
+    cols = ["Rank", "WP No", "Angler", "Lg"] + comp_order + ["Total"]
+    p = p[cols]
     st.markdown(f"#### {club} — Members")
-    st.dataframe(p, use_container_width=True, hide_index=True)
+    if use_best_n and not dropped.empty:
+        d = dropped.reindex(p["WP No"]).reset_index(drop=True)
+        st.dataframe(style_dropped(p, d, comp_order),
+                     use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(p, use_container_width=True, hide_index=True)
 
     st.markdown(f"#### {club} — Catch Detail")
     detail = sub[["comp_id", "wp_no", "Angler", "species_raw", "length_cm",

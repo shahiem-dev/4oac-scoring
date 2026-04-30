@@ -9,6 +9,7 @@ import streamlit as st
 from app_lib import (EDIBLE_PTS_PER_KG, NON_EDIBLE_PTS_PER_KG, get_logo_bytes,
                      load_anglers, load_catches_scored, load_comps,
                      manage_logo, render_season_sidebar)
+from standings import BEST_N_DEFAULT, apply_best_n, per_entity_per_comp
 
 st.set_page_config(page_title="WCSAA League", page_icon="🎣", layout="wide")
 active = render_season_sidebar()
@@ -49,23 +50,35 @@ if len(catches):
     cc = catches.merge(anglers[["wp_no", "club"]], on="wp_no", how="left")
     cc["club"] = cc["club"].fillna("UNKNOWN").replace("", "UNKNOWN")
 
+    comp_order = sorted(catches["comp_id"].unique().tolist())
+    use_best_n = st.toggle(f"Best {BEST_N_DEFAULT} of {len(comp_order)}",
+                           value=False, key="home_best_n",
+                           help="Drop each entity's lowest scores so only the "
+                                f"best {BEST_N_DEFAULT} comps count.")
+    n_eff = BEST_N_DEFAULT if use_best_n else 10**6
+
     left, right = st.columns(2)
     with left:
         st.subheader("Club Standings")
-        club_tot = (cc.groupby("club", as_index=False)["points"].sum()
-                    .sort_values("points", ascending=False).reset_index(drop=True))
+        m = per_entity_per_comp(cc, "club", comp_order)
+        _, _, total = apply_best_n(m, n=n_eff)
+        club_tot = total.sort_values(ascending=False).reset_index()
+        club_tot.columns = ["Club", "Points"]
         club_tot.insert(0, "Pos.", range(1, len(club_tot) + 1))
-        club_tot = club_tot.rename(columns={"club": "Club", "points": "Points"})
         st.dataframe(club_tot, use_container_width=True, hide_index=True)
     with right:
         st.subheader("Top 10 Individuals")
         top = cc.merge(anglers[["wp_no", "first_name", "surname"]], on="wp_no", how="left")
         top["Angler"] = (top["first_name"].fillna("") + " " + top["surname"].fillna("")).str.strip()
-        ind = (top.groupby(["wp_no", "Angler", "club"], as_index=False)["points"].sum()
-               .sort_values("points", ascending=False).head(10).reset_index(drop=True))
+        m = per_entity_per_comp(top, "wp_no", comp_order)
+        _, _, total = apply_best_n(m, n=n_eff)
+        meta = top.drop_duplicates("wp_no").set_index("wp_no")[["Angler", "club"]]
+        ind = total.to_frame("Points").join(meta).reset_index()
+        ind = ind.sort_values("Points", ascending=False).head(10).reset_index(drop=True)
         ind.insert(0, "Pos.", range(1, len(ind) + 1))
-        ind = ind.rename(columns={"wp_no": "WP No", "club": "Club", "points": "Points"})
-        st.dataframe(ind, use_container_width=True, hide_index=True)
+        ind = ind.rename(columns={"wp_no": "WP No", "club": "Club"})
+        st.dataframe(ind[["Pos.", "WP No", "Angler", "Club", "Points"]],
+                     use_container_width=True, hide_index=True)
 else:
     st.info("No catches yet — head to **Catches** in the sidebar to add some.")
 
