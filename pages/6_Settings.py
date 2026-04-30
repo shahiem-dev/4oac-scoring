@@ -60,6 +60,12 @@ with tab_theme:
     ss = st.session_state
     ss.setdefault("_theme_draft", dict(theme))
 
+    def _clear_picker_state():
+        """Drop cached color_picker widget state so they re-init from `value=`."""
+        for k in list(ss.keys()):
+            if k.startswith("cp_"):
+                del ss[k]
+
     col_p, col_a = st.columns([2, 1])
     with col_p:
         preset = st.selectbox("Preset", list(PRESETS.keys()),
@@ -67,6 +73,7 @@ with tab_theme:
     with col_a:
         if st.button("Apply preset", use_container_width=True):
             ss._theme_draft = dict(PRESETS[preset])
+            _clear_picker_state()
             st.success(f"Loaded preset: {preset}. Click Save to persist.")
             st.rerun()
 
@@ -135,6 +142,7 @@ with tab_theme:
     if s2.button("↺ Reset to default", use_container_width=True):
         reset_theme()
         ss._theme_draft = dict(DEFAULT_THEME)
+        _clear_picker_state()
         st.success("Theme reset to default.")
         st.rerun()
 
