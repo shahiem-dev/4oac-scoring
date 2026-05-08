@@ -1,7 +1,6 @@
-"""Generate the 7 printable reports + the master tracker workbook."""
+"""Generate printable XLSX reports and the master tracker workbook."""
 from __future__ import annotations
 
-import io
 import subprocess
 import sys
 from pathlib import Path
@@ -9,13 +8,13 @@ from pathlib import Path
 import streamlit as st
 
 from app_lib import ROOT, comp_options, render_season_sidebar
+from ui import divider_label, kpi_row, page_header, section_label
 
 st.set_page_config(page_title="Reports · WCSAA League", page_icon="📑", layout="wide")
-active = render_season_sidebar()
-st.title(f"📑 Reports — {active}")
-st.caption("Generate printable XLSX outputs. Open in Excel and 'Save as PDF' for printing.")
-
+active      = render_season_sidebar()
 REPORTS_DIR = ROOT / "reports" / active
+page_header("Reports & Exports", "Generate XLSX reports and the master tracker workbook",
+            "📑", active)
 
 
 def run(cmd: list[str]) -> tuple[bool, str]:
@@ -25,53 +24,75 @@ def run(cmd: list[str]) -> tuple[bool, str]:
 
 comps = comp_options()
 
-st.subheader("Per-competition reports (7 files)")
-if not comps:
-    st.warning("Add a competition first.")
-else:
-    comp = st.selectbox("Competition", comps, index=len(comps) - 1)
-    if st.button("Generate the 7 reports", type="primary"):
-        ok, log = run([sys.executable, str(ROOT / "scripts" / "generate_reports.py"),
-                       "--comp", comp, "--season", active])
+# ── Per-competition reports ───────────────────────────────────────────────
+with st.container(border=True):
+    section_label("Per-competition reports (7 files)")
+    st.caption("Generates the 7 standard WCSAA report sheets for a single competition. "
+               "Open in Excel → Save as PDF to print.")
+    if not comps:
+        st.warning("Add a competition first on the **Competitions** page.")
+    else:
+        comp = st.selectbox("Competition", comps, index=len(comps) - 1)
+        if st.button("⚙ Generate 7 reports", type="primary"):
+            with st.spinner("Generating reports…"):
+                ok, log = run([sys.executable,
+                               str(ROOT / "scripts" / "generate_reports.py"),
+                               "--comp", comp, "--season", active])
+            st.code(log or "(no output)")
+            if ok:
+                st.success(f"Reports written to `/reports/{active}/`.")
+            else:
+                st.error("Script returned an error — see output above.")
+
+# ── Master tracker ────────────────────────────────────────────────────────
+divider_label("Master league tracker")
+with st.container(border=True):
+    section_label("Single workbook (all clubs + standings)")
+    st.caption("Dashboard · Club Standings · Individual Standings · one sheet per club · Notes. "
+               "Saved to your Desktop\\League folder and available for download below.")
+    if st.button("⚙ Build tracker", type="primary", key="build_tracker"):
+        with st.spinner("Building tracker…"):
+            ok, log = run([sys.executable,
+                           str(ROOT / "scripts" / "build_tracker.py")])
         st.code(log or "(no output)")
         if ok:
-            st.success("Reports written to /reports.")
+            st.success("Tracker built successfully.")
+        else:
+            st.error("Script returned an error — see output above.")
 
-st.divider()
-
-st.subheader("Master league tracker (single workbook)")
-st.caption("Dashboard + Club Standings + Individual Standings + one sheet per club + Notes. Saved to your Desktop\\League folder and made available below.")
-if st.button("Build tracker", type="primary", key="build_tracker"):
-    ok, log = run([sys.executable, str(ROOT / "scripts" / "build_tracker.py")])
-    st.code(log or "(no output)")
-
-st.divider()
-
-st.subheader("Available files")
+# ── Available files ───────────────────────────────────────────────────────
+divider_label("Available files")
 if REPORTS_DIR.exists():
-    files = sorted(REPORTS_DIR.glob("*.xlsx"), key=lambda p: p.stat().st_mtime, reverse=True)
+    files = sorted(REPORTS_DIR.glob("*.xlsx"),
+                   key=lambda p: p.stat().st_mtime, reverse=True)
     if not files:
         st.info("No reports generated yet.")
-    for f in files:
-        c1, c2 = st.columns([4, 1])
-        c1.write(f"**{f.name}**  ·  {f.stat().st_size / 1024:.0f} KB")
-        c2.download_button("⬇ Download", f.read_bytes(), file_name=f.name,
-                           key=f"dl_{f.name}",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    else:
+        kpi_row([{"icon": "📄", "label": "Report files", "value": len(files)}])
+        for f in files:
+            c1, c2 = st.columns([5, 1])
+            c1.write(f"**{f.name}** · {f.stat().st_size / 1024:.0f} KB")
+            c2.download_button(
+                "⬇ Download", f.read_bytes(),
+                file_name=f.name, key=f"dl_{f.name}",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+else:
+    st.info(f"Reports folder `reports/{active}/` does not exist yet.")
 
-# Tracker file lives on Desktop, named per season
+# ── Desktop tracker ───────────────────────────────────────────────────────
 tracker_name = f"4OAC_League_Tracker_{active}.xlsx"
 desktop_candidates = [
-    Path.home() / "OneDrive - Africa Cricket Development (Pty) Ltd" / "Desktop" / "League" / tracker_name,
+    Path.home() / "OneDrive - Africa Cricket Development (Pty) Ltd"
+    / "Desktop" / "League" / tracker_name,
     Path.home() / "OneDrive" / "Desktop" / "League" / tracker_name,
     Path.home() / "Desktop" / "League" / tracker_name,
 ]
 for p in desktop_candidates:
     if p.exists():
-        st.divider()
-        st.subheader("Tracker on Desktop")
+        divider_label("Tracker on Desktop")
         st.caption(str(p))
-        st.download_button("⬇ Download tracker", p.read_bytes(),
-                           file_name=p.name, key="dl_tracker",
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(
+            "⬇ Download tracker", p.read_bytes(),
+            file_name=p.name, key="dl_tracker",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         break

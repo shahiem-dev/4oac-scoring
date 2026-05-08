@@ -129,6 +129,229 @@ def reset_theme() -> None:
 
 # ---- CSS injection -------------------------------------------------------
 
+def _component_css(t: dict[str, str]) -> str:
+    """Component-library CSS — all wcsaa-* classes used by ui.py."""
+    return f"""
+    <style>
+      /* === PAGE HEADER === */
+      .wcsaa-page-header {{
+        background: linear-gradient(135deg, {t['sidebar_bg']} 0%, {t['sidebar_active_bg']} 100%);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+      }}
+      .wph-icon {{ font-size: 1.8rem; line-height: 1; }}
+      .wph-body {{ flex: 1; min-width: 0; }}
+      .wph-title {{
+        font-size: 1.45rem; font-weight: 700;
+        color: {t['sidebar_heading']}; margin: 0; line-height: 1.2;
+      }}
+      .wph-sub {{ font-size: 0.82rem; color: rgba(255,255,255,0.70); margin-top: 3px; }}
+      .wph-season {{
+        background: rgba(255,255,255,0.14);
+        border-radius: 20px;
+        padding: 3px 13px;
+        font-size: 0.77rem;
+        color: {t['sidebar_heading']};
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }}
+
+      /* === KPI ROW === */
+      .wcsaa-kpi-row {{
+        display: flex; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 1rem;
+      }}
+      .wcsaa-kpi-card {{
+        flex: 1; min-width: 130px;
+        background: {t['main_bg']};
+        border: 1px solid rgba(0,0,0,0.08);
+        border-left: 4px solid {t['chart_accent']};
+        border-radius: 10px;
+        padding: 0.85rem 1.1rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      }}
+      .kpi-icon {{ font-size: 1.25rem; line-height: 1; margin-bottom: 4px; }}
+      .kpi-value {{
+        font-size: 1.65rem; font-weight: 700;
+        color: {t['metric_text']}; line-height: 1.15;
+      }}
+      .kpi-label {{
+        font-size: 0.68rem; text-transform: uppercase;
+        letter-spacing: 0.07em; color: {t['body_text']};
+        opacity: 0.58; margin-top: 3px;
+      }}
+      .kpi-sub {{ font-size: 0.74rem; color: {t['section_heading']}; margin-top: 3px; }}
+
+      /* === LEADER BANNER === */
+      .wcsaa-leader-banner {{
+        background: linear-gradient(90deg, {t['leader_highlight']} 0%, transparent 100%);
+        border-left: 5px solid {t['chart_accent']};
+        border-radius: 0 8px 8px 0;
+        padding: 0.6rem 1rem;
+        margin: 0.4rem 0 0.85rem 0;
+        display: flex; align-items: center; gap: 0.75rem;
+      }}
+      .lb-medal {{ font-size: 1.55rem; line-height: 1; flex-shrink: 0; }}
+      .lb-body {{ flex: 1; min-width: 0; }}
+      .lb-name {{ font-size: 0.96rem; font-weight: 700; color: {t['page_heading']}; }}
+      .lb-detail {{ font-size: 0.78rem; color: {t['body_text']}; opacity: 0.72; }}
+      .lb-pts {{
+        font-size: 1rem; font-weight: 700; color: {t['chart_primary']};
+        background: rgba(0,0,0,0.06); padding: 3px 10px;
+        border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+      }}
+
+      /* === SECTION LABEL === */
+      .wcsaa-section-label {{
+        font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.09em;
+        font-weight: 700; color: {t['section_heading']};
+        border-bottom: 2px solid {t['chart_accent']};
+        display: inline-block; padding-bottom: 3px;
+        margin-bottom: 0.55rem; margin-top: 0.2rem;
+      }}
+
+      /* === SECTION DIVIDER WITH LABEL === */
+      .wcsaa-divider {{
+        display: flex; align-items: center; gap: 0.7rem;
+        margin: 1.1rem 0 0.6rem 0;
+      }}
+      .wcsaa-divider span {{
+        font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.09em;
+        color: {t['section_heading']}; font-weight: 600; white-space: nowrap;
+      }}
+      .wcsaa-divider::before, .wcsaa-divider::after {{
+        content: ''; flex: 1; height: 1px; background: rgba(0,0,0,0.10);
+      }}
+
+      /* === EMPTY STATE === */
+      .wcsaa-empty {{
+        text-align: center; padding: 2.25rem 1.5rem;
+        color: {t['body_text']}; opacity: 0.42;
+      }}
+      .wcsaa-empty .ee-icon {{ font-size: 2.3rem; margin-bottom: 0.4rem; }}
+      .wcsaa-empty p {{ font-size: 0.87rem; margin: 0; }}
+
+      /* === STATUS PILL === */
+      .wcsaa-pill {{
+        display: inline-block; padding: 2px 9px; border-radius: 20px;
+        font-size: 0.69rem; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.04em;
+      }}
+      .wcsaa-pill-ok   {{ background: {t['success_bg']}; color: #166534; }}
+      .wcsaa-pill-warn {{ background: {t['warning_bg']}; color: #92400E; }}
+      .wcsaa-pill-err  {{ background: {t['error_bg']}; color: #991B1B; }}
+
+      /* === PLAIN INFO CARD === */
+      .wcsaa-card {{
+        background: {t['main_bg']};
+        border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 12px;
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+      }}
+      .wcsaa-card-header {{
+        font-size: 0.88rem; font-weight: 700; color: {t['page_heading']};
+        margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem;
+      }}
+
+      /* === NATIVE STREAMLIT OVERRIDES === */
+
+      /* Bordered containers */
+      div[data-testid="stVerticalBlockBorderWrapper"] {{
+        border-radius: 10px !important;
+        border-color: rgba(0,0,0,0.09) !important;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.05) !important;
+      }}
+
+      /* Metric widgets */
+      [data-testid="stMetric"] {{
+        background: {t['main_bg']};
+        border: 1px solid rgba(0,0,0,0.08);
+        border-left: 4px solid {t['chart_accent']};
+        border-radius: 10px;
+        padding: 0.8rem 1rem !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }}
+      [data-testid="stMetricLabel"] > div {{
+        font-size: 0.69rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.65;
+      }}
+
+      /* Tabs */
+      .stTabs [data-baseweb="tab-list"] {{
+        gap: 2px;
+        background: rgba(0,0,0,0.03);
+        border-radius: 8px 8px 0 0;
+        padding: 3px 3px 0 3px;
+        border-bottom: 2px solid rgba(0,0,0,0.08);
+      }}
+      .stTabs [data-baseweb="tab"] {{
+        border-radius: 6px 6px 0 0;
+        padding: 6px 18px;
+        font-size: 0.83rem;
+        font-weight: 500;
+        color: {t['body_text']};
+      }}
+      .stTabs [data-baseweb="tab"]:hover {{
+        background: rgba(0,0,0,0.05);
+      }}
+
+      /* Dataframe container */
+      [data-testid="stDataFrame"] {{
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.07) !important;
+        overflow: hidden;
+      }}
+
+      /* Form labels */
+      .stSelectbox > label,
+      .stTextInput > label,
+      .stNumberInput > label,
+      .stTextArea > label,
+      .stMultiSelect > label {{
+        font-size: 0.74rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: {t['section_heading']} !important;
+      }}
+
+      /* Download button — outlined style */
+      .stDownloadButton > button {{
+        background-color: transparent !important;
+        border: 1px solid {t['button_bg']} !important;
+        color: {t['button_bg']} !important;
+        font-size: 0.8rem !important;
+        padding: 4px 14px !important;
+      }}
+      .stDownloadButton > button:hover {{
+        background-color: {t['button_bg']} !important;
+        color: {t['button_text']} !important;
+      }}
+
+      /* Alert rounding */
+      .stAlert {{ border-radius: 8px !important; }}
+
+      /* Mobile responsive */
+      @media (max-width: 768px) {{
+        .wcsaa-kpi-row {{ flex-direction: column; gap: 0.45rem; }}
+        .wph-season {{ display: none !important; }}
+        .wcsaa-page-header {{ padding: 0.85rem 1rem; border-radius: 8px; }}
+        .wph-title {{ font-size: 1.2rem !important; }}
+        .wcsaa-leader-banner {{ flex-wrap: wrap; }}
+        .lb-pts {{ margin-top: 4px; }}
+      }}
+    </style>
+    """
+
+
 def _css(theme: dict[str, str]) -> str:
     t = theme
     return f"""
@@ -198,9 +421,10 @@ def _css(theme: dict[str, str]) -> str:
 
 
 def inject_css(theme: dict[str, str] | None = None) -> None:
-    """Inject the theme CSS into the current page. Idempotent per page run."""
+    """Inject theme + component CSS into the current page. Idempotent per run."""
     t = theme or load_theme()
     st.markdown(_css(t), unsafe_allow_html=True)
+    st.markdown(_component_css(t), unsafe_allow_html=True)
 
 
 # ---- Plotly template helper ---------------------------------------------

@@ -8,10 +8,11 @@ from app_lib import (clear_all_season_data, clear_catches, create_season,
                      load_catches_raw, load_comps, render_season_sidebar,
                      set_active_season)
 from theme import (DEFAULT_THEME, PRESETS, load_theme, reset_theme, save_theme)
+from ui import page_header
 
 st.set_page_config(page_title="Settings · WCSAA League", page_icon="⚙", layout="wide")
 active = render_season_sidebar()
-st.title("⚙ Settings")
+page_header("Settings", "Seasons, theme & danger zone", "⚙", active)
 seasons = list_seasons()
 
 tab_season, tab_theme, tab_danger = st.tabs(
