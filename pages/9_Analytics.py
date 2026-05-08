@@ -26,7 +26,7 @@ if catches.empty:
     st.stop()
 
 # ── Global filters ────────────────────────────────────────────────────────
-filters    = render_global_filters(catches, anglers)
+filters = render_global_filters(catches, anglers)
 catches_f, anglers_f = apply_filters(catches, anglers, filters)
 if catches_f.empty:
     st.warning("No catches match the current filters.")
@@ -34,58 +34,92 @@ if catches_f.empty:
 
 comp_order = sorted(catches_f["comp_id"].astype(str).unique().tolist())
 
-# ── Chart controls (sidebar) ──────────────────────────────────────────────
+# ── Dataset + Top-N controls (sidebar) ───────────────────────────────────
 with st.sidebar:
     st.markdown("### 📊 Chart controls")
-    dataset    = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
-    chart_type = st.radio("Chart type", ["Bar", "Pie", "Line"],
-                          horizontal=True, key="an_chart_type")
-    top_n      = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
-                                   value=10, key="an_top_n")
-    use_best_n = st.toggle(f"Best {BEST_N_DEFAULT} of {len(comp_order)}",
-                            value=False,
-                            help="Applies to points-based datasets.",
-                            key="an_best_n")
+    dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
+    top_n   = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
+                                value=10, key="an_top_n")
+    use_best_n = st.toggle(
+        f"Best {BEST_N_DEFAULT} of {len(comp_order)}",
+        value=False,
+        help="Applies to points-based datasets.",
+        key="an_best_n")
     n_eff = BEST_N_DEFAULT if use_best_n else None
 
-# ── Build data ────────────────────────────────────────────────────────────
+# ── Build ranking data ────────────────────────────────────────────────────
 meta    = DATASETS[dataset]
 ranking = get_leaderboard_data(dataset, catches_f, anglers_f,
                                 top_n=top_n, comp_order=comp_order,
                                 best_n=n_eff)
 
-if chart_type == "Pie" and dataset in ("Heaviest Edible", "Heaviest Non-Edible"):
-    st.info("Pie charts are most meaningful for grouped categories. "
-            "For individual catches, **Bar** is recommended.")
-
-chart_data = (get_trend_data(dataset, catches_f, anglers_f,
-                              top_n=top_n, comp_order=comp_order)
-              if chart_type == "Line"
-              else ranking[["Category", "Value"]].copy())
-
-# ── Render tabs ───────────────────────────────────────────────────────────
-tab_chart, tab_table = st.tabs(["📈  Chart view", "📋  Table view"])
-
 title = f"{dataset} — Top {top_n}"
 if use_best_n and dataset in ("Overall Points per Angler", "Club Standings"):
     title += f" (best {BEST_N_DEFAULT} of {len(comp_order)})"
 
-with tab_chart:
+# ── Four chart-type tabs + table ─────────────────────────────────────────
+tab_bar, tab_pie, tab_line, tab_table = st.tabs(
+    ["📊  Bar chart", "🥧  Pie chart", "📈  Line chart", "📋  Table view"])
+
+
+def _no_data() -> None:
+    empty_state("No data to display with the current filters.", "📊")
+
+
+def _caption(chart_data) -> None:
+    n = len(chart_data["Category"].unique()) if not chart_data.empty else 0
+    st.caption(f"Showing **{n}** {meta['category_label'].lower()}(s) after filters.")
+
+
+# ── Bar chart ─────────────────────────────────────────────────────────────
+with tab_bar:
     if ranking.empty:
-        empty_state("No data to chart with the current filters.", "📊")
+        _no_data()
     else:
-        fig = render_chart(chart_data, chart_type, title=title,
+        chart_data = ranking[["Category", "Value"]].copy()
+        fig = render_chart(chart_data, "bar", title=title,
                            value_label=meta["value_label"],
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
-        n_items = (len(chart_data["Category"].unique())
-                   if not chart_data.empty else 0)
-        st.caption(f"Showing **{n_items}** {meta['category_label'].lower()}(s) "
-                   f"after filters.")
+        _caption(chart_data)
 
+# ── Pie chart ─────────────────────────────────────────────────────────────
+with tab_pie:
+    if ranking.empty:
+        _no_data()
+    else:
+        if dataset in ("Heaviest Edible", "Heaviest Non-Edible"):
+            st.info(
+                "Pie charts work best with grouped categories (clubs, divisions). "
+                "For individual catches, the **Bar chart** tab is clearer.")
+        chart_data = ranking[["Category", "Value"]].copy()
+        fig = render_chart(chart_data, "pie", title=title,
+                           value_label=meta["value_label"],
+                           category_label=meta["category_label"])
+        st.plotly_chart(fig, use_container_width=True)
+        _caption(chart_data)
+
+# ── Line chart ────────────────────────────────────────────────────────────
+with tab_line:
+    if ranking.empty:
+        _no_data()
+    else:
+        if dataset in ("Heaviest Edible", "Heaviest Non-Edible"):
+            st.info(
+                "Line charts show progression across competitions. "
+                "This dataset contains single catches — use **Bar** or **Pie** instead.")
+        chart_data = get_trend_data(dataset, catches_f, anglers_f,
+                                     top_n=top_n, comp_order=comp_order)
+        fig = render_chart(chart_data, "line", title=title,
+                           value_label=meta["value_label"],
+                           category_label=meta["category_label"])
+        st.plotly_chart(fig, use_container_width=True)
+        _caption(chart_data)
+
+# ── Table view ────────────────────────────────────────────────────────────
 with tab_table:
     if ranking.empty:
-        empty_state("No data with the current filters.", "📋")
+        _no_data()
     else:
         section_label(f"{dataset} — top {top_n}")
         st.dataframe(highlight_leader(ranking),
