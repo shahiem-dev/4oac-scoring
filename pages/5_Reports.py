@@ -7,6 +7,9 @@ from pathlib import Path
 
 import streamlit as st
 
+from auth import require_login
+require_login()
+
 from app_lib import ROOT, comp_options, render_season_sidebar
 from ui import divider_label, kpi_row, page_header, section_label
 

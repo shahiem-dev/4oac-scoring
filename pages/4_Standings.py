@@ -4,6 +4,9 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from auth import require_login
+require_login()
+
 from app_lib import (DIVISIONS, apply_filters, load_anglers,
                      load_catches_scored, load_comps, render_global_filters,
                      render_season_sidebar, resolve_sub_team)

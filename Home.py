@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from auth import require_login, logout, current_user, is_admin
 from app_lib import (EDIBLE_PTS_PER_KG, NON_EDIBLE_PTS_PER_KG, apply_filters,
                      get_logo_bytes, load_anglers, load_catches_scored,
                      load_comps, manage_logo, render_global_filters,
@@ -11,7 +12,13 @@ from standings import BEST_N_DEFAULT, apply_best_n, per_entity_per_comp
 from ui import divider_label, kpi_row, leader_banner, page_header, section_label
 
 st.set_page_config(page_title="WCSAA League", page_icon="🎣", layout="wide")
+require_login()
 active = render_season_sidebar()
+
+with st.sidebar:
+    st.caption(f"Signed in as **{current_user()}**")
+    if st.button("Sign out", key="logout_home"):
+        logout()
 
 # ── Header ────────────────────────────────────────────────────────────────
 logo = get_logo_bytes("wcsaa")

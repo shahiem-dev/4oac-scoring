@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import streamlit as st
 
+from auth import require_login
+require_login()
+
 from analytics import (DATASETS, get_leaderboard_data, get_trend_data,
                        render_chart)
 from app_lib import (apply_filters, highlight_leader, load_anglers,

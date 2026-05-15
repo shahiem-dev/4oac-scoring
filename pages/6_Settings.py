@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import streamlit as st
 
+from auth import require_login
+require_login()
+
 from app_lib import (clear_all_season_data, clear_catches, create_season,
                      delete_season, list_seasons, load_anglers,
                      load_catches_raw, load_comps, render_season_sidebar,

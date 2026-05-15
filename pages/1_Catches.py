@@ -4,6 +4,9 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from auth import require_login
+require_login()
+
 from app_lib import (SUB_TEAMS, angler_options, comp_options, get_scorer,
                      load_anglers, load_catches_raw, load_catches_scored,
                      load_team_assignments, parse_wp_from_label,

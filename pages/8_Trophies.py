@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import streamlit as st
 
+from auth import require_login
+require_login()
+
 from app_lib import (apply_filters, highlight_leader, load_anglers,
                      load_catches_scored, load_comps, load_team_assignments,
                      load_trophy_nominees, render_global_filters,
