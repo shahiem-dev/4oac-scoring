@@ -16,6 +16,8 @@ import streamlit as st
 def page_header(title: str, subtitle: str = "", icon: str = "",
                 season: str = "") -> None:
     """Gradient header strip at the top of every page."""
+    from version import staging_banner
+    staging_banner()
     icon_html  = f'<span class="wph-icon">{icon}</span>' if icon else ""
     sub_html   = (f'<div class="wph-sub">{_html.escape(subtitle)}</div>'
                   if subtitle else "")
