@@ -57,6 +57,8 @@ DATASETS: dict[str, dict] = {
                                   "category_label": "Species"},
     "Heaviest per Species":     {"kind": "ranking", "value_label": "Weight (kg)",
                                   "category_label": "Species"},
+    "All Species (Detailed)":   {"kind": "ranking", "value_label": "Catches",
+                                  "category_label": "Species"},
 }
 
 
@@ -161,6 +163,20 @@ def get_leaderboard_data(dataset: str, scored: pd.DataFrame,
                .rename(columns={"weight_kg": "Value"})
                .sort_values("Value", ascending=False))
         out = agg.rename(columns={"canonical_species": "Category"})
+
+    elif dataset == "All Species (Detailed)":
+        sub = cc[cc["valid"]]
+        agg = (sub.groupby("canonical_species")
+               .agg(Catches=("weight_kg", "size"),
+                    **{"Total weight (kg)": ("weight_kg", "sum"),
+                       "Heaviest (kg)":     ("weight_kg", "max"),
+                       "Avg weight (kg)":   ("weight_kg", "mean")})
+               .reset_index().round(3)
+               .rename(columns={"canonical_species": "Category"})
+               .sort_values("Catches", ascending=False))
+        agg["Value"] = agg["Catches"]
+        out = agg[["Category", "Value", "Catches", "Total weight (kg)",
+                   "Heaviest (kg)", "Avg weight (kg)"]]
 
     else:
         raise ValueError(f"Unhandled dataset: {dataset!r}")

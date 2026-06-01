@@ -68,8 +68,11 @@ with st.container(border=True):
     with c3:
         dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
     with c4:
-        top_n = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
-                                  value=10, key="an_top_n")
+        top_n_raw = st.select_slider(
+            "Top N", options=[5, 10, 15, 20, 30, 50, "All"],
+            value=10, key="an_top_n",
+            help="Pick 'All' to show every category — useful with species datasets.")
+        top_n = None if top_n_raw == "All" else int(top_n_raw)
 
 # Apply IC + venue filters (intersection — each IC remains a distinct group)
 if ic_picks:
@@ -103,7 +106,7 @@ ranking = get_leaderboard_data(dataset, catches_f, anglers_f,
                                 top_n=top_n, comp_order=comp_order,
                                 best_n=n_eff)
 
-title = f"{dataset} — Top {top_n}"
+title = f"{dataset} — {('All' if top_n is None else f'Top {top_n}')}"
 if use_best_n and dataset in ("Overall Points per Angler", "Club Standings"):
     title += f" (best {BEST_N_DEFAULT} of {len(comp_order)})"
 
@@ -194,7 +197,9 @@ with tab_per_ic:
         wide = wide.reindex(columns=comp_order, fill_value=0)
         wide.columns = [_ic_label(str(c)) for c in wide.columns]
         wide["Total"] = wide.sum(axis=1)
-        wide = wide.sort_values("Total", ascending=False).head(top_n)
+        wide = wide.sort_values("Total", ascending=False)
+        if top_n is not None:
+            wide = wide.head(top_n)
         # Format numbers without matplotlib gradient (keeps deps minimal)
         is_weight = meta["value_label"].lower().startswith("weight")
         fmt = "{:,.2f}" if is_weight else "{:,.0f}"
@@ -210,7 +215,7 @@ with tab_table:
     if ranking.empty:
         _no_data()
     else:
-        section_label(f"{dataset} — top {top_n}")
+        section_label(f"{dataset} — {('all' if top_n is None else f'top {top_n}')}")
         st.dataframe(highlight_leader(ranking),
                      use_container_width=True, hide_index=True)
         if not ranking.empty:
@@ -222,7 +227,7 @@ with tab_table:
         st.download_button(
             "⬇ Download CSV",
             ranking.to_csv(index=False).encode(),
-            file_name=f"{dataset.replace(' ', '_').lower()}_top{top_n}.csv",
+            file_name=f"{dataset.replace(' ', '_').lower()}_{('all' if top_n is None else f'top{top_n}')}.csv",
             mime="text/csv",
         )
 
