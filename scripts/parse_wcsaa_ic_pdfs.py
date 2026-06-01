@@ -124,6 +124,8 @@ SPECIES_PREFIXES = {
     "Stone","Mud","Sea","Pajama","Saw","Spearnose","Speckled","Hagfish",
     "Bluntnose","Halfbeak","Garfish","Needlefish","Marlin","Tuna","Bonito",
     "Yellowfin","Skipjack","Albacore","Mossbanker","Hake","Rockcod","Zebra",
+    # Manual point allocations (e.g. national duty replacement scores)
+    "Average",
 }
 
 
