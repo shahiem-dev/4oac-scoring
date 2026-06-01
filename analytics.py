@@ -303,8 +303,23 @@ def render_chart(data: pd.DataFrame, chart_type: str, *, title: str = "",
     if chart_type == "pie":
         fig = px.pie(data, names="Category", values="Value", hole=0.35,
                      title=title, color_discrete_sequence=palette)
-        fig.update_traces(textposition="inside", textinfo="percent+label",
-                          hovertemplate="%{label}: %{value:.2f}<extra></extra>")
+        # If value_label is already a percentage view, show label+percent;
+        # otherwise show the absolute value next to each slice (kg, count, etc.)
+        if value_label.strip().startswith("%"):
+            fig.update_traces(textposition="inside", textinfo="percent+label",
+                              hovertemplate="%{label}: %{value:.2f}%<extra></extra>")
+        else:
+            unit_suffix = ""
+            if "kg" in value_label.lower():
+                unit_suffix = " kg"
+            elif "catches" in value_label.lower() or "count" in value_label.lower():
+                unit_suffix = ""
+            fig.update_traces(
+                textposition="inside",
+                textinfo="label+value",
+                texttemplate=f"%{{label}}<br>%{{value:.2f}}{unit_suffix}",
+                hovertemplate=(f"%{{label}}: %{{value:.2f}}{unit_suffix}"
+                               " (%{percent})<extra></extra>"))
     elif chart_type == "line":
         if "Comp" not in data.columns:
             fig = px.line(data, x="Category", y="Value", markers=True,
