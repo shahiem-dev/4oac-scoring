@@ -1,6 +1,7 @@
 """Analytics — interactive charts driven by sidebar controls."""
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 from auth import require_login
