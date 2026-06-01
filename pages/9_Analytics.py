@@ -73,12 +73,20 @@ with st.container(border=True):
             value=10, key="an_top_n",
             help="Pick 'All' to show every category — useful with species datasets.")
         top_n = None if top_n_raw == "All" else int(top_n_raw)
-    show_as = st.radio(
-        "Show values as", ["Absolute", "% of total in scope"],
-        horizontal=True, key="an_show_as",
-        help="'% of total' converts every value into its share of the total "
-             "across the filtered catches. Affects bar, pie, line and Per IC tabs.")
-    as_percent = show_as.startswith("%")
+    fcol1, fcol2 = st.columns(2)
+    with fcol1:
+        unit_choice = st.radio(
+            "Units (species datasets)",
+            ["Catches (count)", "Weight (kg)"],
+            horizontal=True, key="an_unit_choice",
+            help="Choose count vs kg for species charts. Ignored for non-species datasets.")
+    with fcol2:
+        as_choice = st.radio(
+            "Show as", ["Absolute", "% of total in scope"],
+            horizontal=True, key="an_show_as",
+            help="'% of total' converts to share of the total across filtered catches.")
+    use_weight = unit_choice == "Weight (kg)"
+    as_percent = as_choice.startswith("%")
 
 # Apply IC + venue filters (intersection — each IC remains a distinct group)
 if ic_picks:
@@ -112,13 +120,42 @@ ranking = get_leaderboard_data(dataset, catches_f, anglers_f,
                                 top_n=top_n, comp_order=comp_order,
                                 best_n=n_eff)
 
-title = f"{dataset} — {('All' if top_n is None else f'Top {top_n}')}"
+# If the user picked Weight (kg) and the dataset is species-based with count units,
+# swap the Value column to total weight; same trick in reverse for Catches.
+SPECIES_DATASETS = ("Catches per Species", "Total Weight per Species",
+                    "Heaviest per Species", "All Species (Detailed)")
+
+
+def _recompute_species_value(scored_df, weight: bool) -> pd.DataFrame:
+    """Recompute species ranking with chosen units."""
+    df = scored_df.copy()
+    df["weight_kg"] = pd.to_numeric(df["weight_kg"], errors="coerce").fillna(0.0)
+    df["valid"]    = df["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+    df = df[df["valid"]].copy()
+    if weight:
+        df = df[df["weight_kg"] > 0]
+        agg = (df.groupby("canonical_species")["weight_kg"].sum()
+               .reset_index().rename(columns={"weight_kg": "Value"}))
+    else:
+        agg = (df.groupby("canonical_species").size()
+               .reset_index(name="Value"))
+    agg = agg.rename(columns={"canonical_species": "Category"}).sort_values("Value", ascending=False)
+    return agg.reset_index(drop=True)
+
+
+if dataset in SPECIES_DATASETS:
+    ranking = _recompute_species_value(catches_f, weight=use_weight)
+    if top_n is not None:
+        ranking = ranking.head(top_n)
+    ranking.insert(0, "Rank", range(1, len(ranking) + 1))
+
+unit_label = "Weight (kg)" if use_weight else "Catches"
+title = f"{dataset} — {unit_label} — {('All' if top_n is None else f'Top {top_n}')}"
 if as_percent:
     title += " (% of total)"
 
 
 def _to_percent(df, value_col="Value"):
-    """Convert absolute Value to % of total across all rows in df (in place copy)."""
     if df.empty or value_col not in df.columns:
         return df
     df = df.copy()
@@ -129,7 +166,6 @@ def _to_percent(df, value_col="Value"):
 
 
 def _to_percent_per_comp(df):
-    """For trend data (long form with Comp column): % within each Comp."""
     if df.empty or "Comp" not in df.columns:
         return df
     df = df.copy()
@@ -138,9 +174,10 @@ def _to_percent_per_comp(df):
     return df
 
 
-# Apply percentage view to ranking if requested
 display_ranking = _to_percent(ranking) if as_percent else ranking
-display_value_label = "% of total" if as_percent else meta["value_label"]
+display_value_label = ("% of total" if as_percent
+                       else (unit_label if dataset in SPECIES_DATASETS
+                             else meta["value_label"]))
 if use_best_n and dataset in ("Overall Points per Angler", "Club Standings"):
     title += f" (best {BEST_N_DEFAULT} of {len(comp_order)})"
 
@@ -196,8 +233,29 @@ with tab_line:
             st.info(
                 "Line charts show progression across competitions. "
                 "This dataset contains single catches — use **Bar** or **Pie** instead.")
-        chart_data = get_trend_data(dataset, catches_f, anglers_f,
-                                     top_n=top_n, comp_order=comp_order)
+        if dataset in SPECIES_DATASETS and use_weight:
+            # Recompute long with weight sums
+            cc_tmp = catches_f.copy()
+            cc_tmp["weight_kg"] = pd.to_numeric(cc_tmp["weight_kg"], errors="coerce").fillna(0.0)
+            cc_tmp["valid"] = cc_tmp["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+            sub = cc_tmp[cc_tmp["valid"] & (cc_tmp["weight_kg"] > 0)]
+            chart_data = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].sum()
+                          .reset_index()
+                          .rename(columns={"canonical_species": "Category",
+                                           "comp_id": "Comp", "weight_kg": "Value"}))
+            keep = display_ranking["Category"].tolist()
+            chart_data = chart_data[chart_data["Category"].isin(keep)]
+            import pandas as _pd
+            chart_data["Comp"] = _pd.Categorical(chart_data["Comp"].astype(str),
+                                                  categories=comp_order, ordered=True)
+            chart_data = chart_data.sort_values(["Category", "Comp"])
+        else:
+            chart_data = get_trend_data(dataset, catches_f, anglers_f,
+                                         top_n=top_n, comp_order=comp_order)
+        if len(comp_order) < 2:
+            st.info(
+                f"📊 Line chart needs ≥ 2 competitions to draw a trend. "
+                f"Currently {len(comp_order)} selected — select more ICs above for a meaningful line.")
         if as_percent:
             chart_data = _to_percent_per_comp(chart_data)
         # Relabel Comp -> "IC N (YYYY-MM-DD · Venue)" so the line x-axis carries dates+venues
@@ -217,8 +275,18 @@ with tab_line:
 
 # ── Per IC breakdown ─────────────────────────────────────────────────────
 with tab_per_ic:
-    chart_data = get_trend_data(dataset, catches_f, anglers_f,
-                                 top_n=top_n, comp_order=comp_order)
+    if dataset in SPECIES_DATASETS and use_weight:
+        cc_tmp = catches_f.copy()
+        cc_tmp["weight_kg"] = pd.to_numeric(cc_tmp["weight_kg"], errors="coerce").fillna(0.0)
+        cc_tmp["valid"] = cc_tmp["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+        sub = cc_tmp[cc_tmp["valid"] & (cc_tmp["weight_kg"] > 0)]
+        chart_data = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].sum()
+                      .reset_index()
+                      .rename(columns={"canonical_species": "Category",
+                                       "comp_id": "Comp", "weight_kg": "Value"}))
+    else:
+        chart_data = get_trend_data(dataset, catches_f, anglers_f,
+                                     top_n=top_n, comp_order=comp_order)
     if chart_data.empty:
         _no_data()
     else:
@@ -245,7 +313,8 @@ with tab_per_ic:
             wide = wide.head(top_n)
         wide.columns = [_ic_label(str(c)) if c != "Total" else "Total" for c in wide.columns]
         # Format
-        is_weight = meta["value_label"].lower().startswith("weight")
+        is_weight = (dataset in SPECIES_DATASETS and use_weight) or \
+                    meta["value_label"].lower().startswith("weight")
         if as_percent:
             fmt = "{:,.2f}%"
         else:
