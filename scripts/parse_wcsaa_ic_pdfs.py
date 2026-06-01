@@ -110,20 +110,41 @@ def _num(s: str) -> float:
     return float(s.replace(",", "."))
 
 
-def _split_name_species(blob: str) -> tuple[str, str]:
-    """From 'Abrahams,Saddeeq Site Fish (Catfish - White Sea)' split into
-    name='Abrahams,Saddeeq', species='Site Fish (Catfish - White Sea)'.
+SPECIES_PREFIXES = {
+    "Shark","Guitarfish","Stingray","Ray","Skate","Site","Catshark","Kob",
+    "Steenbras","Cape","Yellowtail","Snoek","Hottentot","Galjoen","Belman",
+    "Mackerel","Geelbek","Garrick","Elephant","Eel","Stumpnose","Strepie",
+    "Blacktail","White","Springer","Soupfin","Spotted","Cob","Hound",
+    "Baardman","Bronze","Copper","Smooth","Gurnard","Catfish","Octopus",
+    "Elf","Shad","Musselcracker","Bream","Mullet","Roman","Steentjie",
+    "Maasbanker","Anchovy","Sardine","Pinky","Pignose","Sand","Sole",
+    "Klipfish","Klipvis","Klipper","Klippie","Karanteen","Knorhaan",
+    "Black","Red","Silver","Blue","Yellow","Green","Common","Lesser",
+    "Greater","Banded","Striped","Two","Devil","Star","Coral","Reef",
+    "Stone","Mud","Sea","Pajama","Saw","Spearnose","Speckled","Hagfish",
+    "Bluntnose","Halfbeak","Garfish","Needlefish","Marlin","Tuna","Bonito",
+    "Yellowfin","Skipjack","Albacore","Mossbanker","Hake","Rockcod","Zebra",
+}
 
-    Strategy: take the first 'Lastname,Firstname' match as the name; rest is species.
+
+def _split_name_species(blob: str) -> tuple[str, str]:
+    """Split 'Lastname,Firstnames Species Words' into (name, species).
+
+    Strategy: walk left-to-right and find the first word that is a known
+    species prefix. Everything before = name, from there to end = species.
+    This is robust against multi-word first names like 'Marc Lindsay' and
+    parenthesised suffixes like '(Jnr)'.
     """
-    m = NAME.match(blob + " ")  # trailing space to allow match
+    words = blob.split()
+    for i, w in enumerate(words):
+        if w in SPECIES_PREFIXES:
+            return " ".join(words[:i]).strip(), " ".join(words[i:]).strip()
+    # Fallback: try NAME regex
+    m = NAME.match(blob + " ")
     if m:
         name = m.group(1).strip()
-        species = blob[m.end()-1:].strip() if len(blob) > m.end()-1 else ""
-        # Note: m.end() points after the trailing space we added
         species = blob[len(name):].strip().lstrip(",").strip()
         return name, species
-    # Fallback: split on first space-after-comma run
     return blob, ""
 
 
