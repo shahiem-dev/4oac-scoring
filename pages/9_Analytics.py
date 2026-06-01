@@ -35,31 +35,55 @@ if catches_f.empty:
     st.warning("No catches match the current filters.")
     st.stop()
 
-# Venue filter (join comps → catches via comp_id)
-comps_df = load_comps()
-if not comps_df.empty:
-    venues = sorted(comps_df["venue"].dropna().unique().tolist())
-    with st.sidebar:
-        st.markdown("### 📍 Venue filter")
-        selected_venues = st.multiselect(
-            "Venue", venues, default=[], key="an_venue",
-            help="Leave empty to include all venues.")
-    if selected_venues:
-        venue_comp_ids = (comps_df[comps_df["venue"].isin(selected_venues)]
-                          ["comp_id"].astype(str).tolist())
-        catches_f = catches_f[catches_f["comp_id"].astype(str).isin(venue_comp_ids)]
-        if catches_f.empty:
-            st.warning(f"No catches found at venue(s): {', '.join(selected_venues)}.")
-            st.stop()
+# ── Main-area controls (IC + Venue + Dataset + Top-N) ────────────────────
+comps_df    = load_comps()
+all_comps   = sorted(catches_f["comp_id"].astype(str).unique().tolist())
+all_venues  = sorted(comps_df["venue"].dropna().unique().tolist()) if not comps_df.empty else []
+venue_by_id = dict(zip(comps_df["comp_id"].astype(str), comps_df["venue"])) if not comps_df.empty else {}
+
+with st.container(border=True):
+    section_label("Filters")
+    c1, c2, c3, c4 = st.columns([2, 2, 3, 1])
+    with c1:
+        ic_pick = st.selectbox(
+            "Competition (IC)", ["All"] + [f"IC {c}" for c in all_comps],
+            key="an_ic_pick")
+    with c2:
+        venue_pick = st.selectbox(
+            "Venue", ["All"] + all_venues, key="an_venue_pick",
+            disabled=ic_pick != "All",
+            help="Filter all competitions at a venue. Disabled when a specific IC is picked.")
+    with c3:
+        dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
+    with c4:
+        top_n = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
+                                  value=10, key="an_top_n")
+
+# Apply IC filter
+if ic_pick != "All":
+    pick_id = ic_pick.split(" ", 1)[1]
+    catches_f = catches_f[catches_f["comp_id"].astype(str) == pick_id]
+# Apply venue filter (only when IC is "All")
+elif venue_pick != "All":
+    venue_comp_ids = [cid for cid, v in venue_by_id.items() if v == venue_pick]
+    catches_f = catches_f[catches_f["comp_id"].astype(str).isin(venue_comp_ids)]
+
+if catches_f.empty:
+    st.warning("No catches match the current filters.")
+    st.stop()
 
 comp_order = sorted(catches_f["comp_id"].astype(str).unique().tolist())
 
-# ── Dataset + Top-N controls (sidebar) ───────────────────────────────────
+# Caption: show what we're showing
+scope = (f"**IC {ic_pick.split(' ',1)[1]}** (venue: {venue_by_id.get(ic_pick.split(' ',1)[1], '?')})"
+         if ic_pick != "All"
+         else (f"venue **{venue_pick}**" if venue_pick != "All"
+               else "**entire season**"))
+st.caption(f"Showing {scope} — {len(catches_f)} catches.")
+
+# ── Best-N toggle (sidebar) ───────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 📊 Chart controls")
-    dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
-    top_n   = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
-                                value=10, key="an_top_n")
     use_best_n = st.toggle(
         f"Best {BEST_N_DEFAULT} of {len(comp_order)}",
         value=False,
