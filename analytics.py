@@ -303,23 +303,26 @@ def render_chart(data: pd.DataFrame, chart_type: str, *, title: str = "",
     if chart_type == "pie":
         fig = px.pie(data, names="Category", values="Value", hole=0.35,
                      title=title, color_discrete_sequence=palette)
-        # If value_label is already a percentage view, show label+percent;
-        # otherwise show the absolute value next to each slice (kg, count, etc.)
-        if value_label.strip().startswith("%"):
-            fig.update_traces(textposition="inside", textinfo="percent+label",
-                              hovertemplate="%{label}: %{value:.2f}%<extra></extra>")
-        else:
-            unit_suffix = ""
+        is_percent = value_label.strip().startswith("%")
+        unit_suffix = ""
+        if not is_percent:
             if "kg" in value_label.lower():
                 unit_suffix = " kg"
-            elif "catches" in value_label.lower() or "count" in value_label.lower():
-                unit_suffix = ""
+        if is_percent:
+            # Show "Species  47.6%"
             fig.update_traces(
                 textposition="inside",
-                textinfo="label+value",
-                texttemplate=f"%{{label}}<br>%{{value:.2f}}{unit_suffix}",
-                hovertemplate=(f"%{{label}}: %{{value:.2f}}{unit_suffix}"
-                               " (%{percent})<extra></extra>"))
+                textinfo="none",
+                texttemplate="%{label}<br>%{value:.2f}%",
+                hovertemplate="%{label}: %{value:.2f}%<extra></extra>")
+        else:
+            # Show "Species  1971.05 kg"  (NO percent in slice)
+            value_fmt = "%{value:.2f}" + unit_suffix
+            fig.update_traces(
+                textposition="inside",
+                textinfo="none",
+                texttemplate="%{label}<br>" + value_fmt,
+                hovertemplate=f"%{{label}}: {value_fmt} (%{{percent}} of total)<extra></extra>")
     elif chart_type == "line":
         if "Comp" not in data.columns:
             fig = px.line(data, x="Category", y="Value", markers=True,
