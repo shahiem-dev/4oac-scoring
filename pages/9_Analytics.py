@@ -9,7 +9,7 @@ require_login()
 from analytics import (DATASETS, get_leaderboard_data, get_trend_data,
                        render_chart)
 from app_lib import (apply_filters, highlight_leader, load_anglers,
-                     load_catches_scored, render_global_filters,
+                     load_catches_scored, load_comps, render_global_filters,
                      render_season_sidebar)
 from standings import BEST_N_DEFAULT
 from ui import divider_label, empty_state, leader_banner, page_header, section_label
@@ -34,6 +34,23 @@ catches_f, anglers_f = apply_filters(catches, anglers, filters)
 if catches_f.empty:
     st.warning("No catches match the current filters.")
     st.stop()
+
+# Venue filter (join comps → catches via comp_id)
+comps_df = load_comps()
+if not comps_df.empty:
+    venues = sorted(comps_df["venue"].dropna().unique().tolist())
+    with st.sidebar:
+        st.markdown("### 📍 Venue filter")
+        selected_venues = st.multiselect(
+            "Venue", venues, default=[], key="an_venue",
+            help="Leave empty to include all venues.")
+    if selected_venues:
+        venue_comp_ids = (comps_df[comps_df["venue"].isin(selected_venues)]
+                          ["comp_id"].astype(str).tolist())
+        catches_f = catches_f[catches_f["comp_id"].astype(str).isin(venue_comp_ids)]
+        if catches_f.empty:
+            st.warning(f"No catches found at venue(s): {', '.join(selected_venues)}.")
+            st.stop()
 
 comp_order = sorted(catches_f["comp_id"].astype(str).unique().tolist())
 
@@ -60,9 +77,10 @@ title = f"{dataset} — Top {top_n}"
 if use_best_n and dataset in ("Overall Points per Angler", "Club Standings"):
     title += f" (best {BEST_N_DEFAULT} of {len(comp_order)})"
 
-# ── Four chart-type tabs + table ─────────────────────────────────────────
-tab_bar, tab_pie, tab_line, tab_table = st.tabs(
-    ["📊  Bar chart", "🥧  Pie chart", "📈  Line chart", "📋  Table view"])
+# ── Five chart-type tabs + table ─────────────────────────────────────────
+tab_bar, tab_pie, tab_line, tab_per_ic, tab_table = st.tabs(
+    ["📊  Bar chart", "🥧  Pie chart", "📈  Line chart",
+     "🏆  Per IC", "📋  Table view"])
 
 
 def _no_data() -> None:
@@ -118,6 +136,36 @@ with tab_line:
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
+
+# ── Per IC breakdown ─────────────────────────────────────────────────────
+with tab_per_ic:
+    chart_data = get_trend_data(dataset, catches_f, anglers_f,
+                                 top_n=top_n, comp_order=comp_order)
+    if chart_data.empty:
+        _no_data()
+    else:
+        # Pivot to wide: rows=Category, cols=Comp, values=Value
+        import pandas as _pd
+        wide = (chart_data.pivot_table(index="Category", columns="Comp",
+                                         values="Value", aggfunc="sum",
+                                         observed=False)
+                .fillna(0))
+        wide.columns = [f"IC {c}" for c in wide.columns]
+        wide["Total"] = wide.sum(axis=1)
+        wide = wide.sort_values("Total", ascending=False).head(top_n)
+        # Style numbers
+        fmt = "{:.2f}" if meta["value_label"].lower().startswith("weight") else "{:,.0f}"
+        st.dataframe(
+            wide.style.format(fmt).background_gradient(cmap="Blues",
+                                                       subset=wide.columns[:-1])
+                      .format("{:,.2f}" if meta["value_label"].lower().startswith("weight")
+                              else "{:,.0f}", subset=["Total"]),
+            use_container_width=True)
+        st.download_button(
+            "⬇ Download per-IC CSV",
+            wide.to_csv().encode(),
+            file_name=f"{dataset.replace(' ', '_').lower()}_per_ic.csv",
+            mime="text/csv", key="an_per_ic_dl")
 
 # ── Table view ────────────────────────────────────────────────────────────
 with tab_table:

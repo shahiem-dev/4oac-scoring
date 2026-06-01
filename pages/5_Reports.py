@@ -10,8 +10,12 @@ import streamlit as st
 from auth import require_login
 require_login()
 
-from app_lib import ROOT, comp_options, render_season_sidebar
-from ui import divider_label, kpi_row, page_header, section_label
+import pandas as pd
+
+from app_lib import (ROOT, apply_filters, comp_options, load_anglers,
+                     load_catches_scored, load_comps, render_global_filters,
+                     render_season_sidebar)
+from ui import divider_label, empty_state, kpi_row, page_header, section_label
 
 st.set_page_config(page_title="Reports · WCSAA League", page_icon="📑", layout="wide")
 active      = render_season_sidebar()
@@ -46,6 +50,97 @@ with st.container(border=True):
                 st.success(f"Reports written to `/reports/{active}/`.")
             else:
                 st.error("Script returned an error — see output above.")
+
+# ── Season summary downloads ───────────────────────────────────────────────
+divider_label("Season summary — quick CSV exports")
+scored  = load_catches_scored()
+anglers = load_anglers()
+comps_df = load_comps()
+if scored.empty:
+    empty_state("No catches recorded yet.", "📊")
+else:
+    cc = scored.copy()
+    cc["weight_kg"] = pd.to_numeric(cc["weight_kg"], errors="coerce").fillna(0.0)
+    cc["edible"]    = cc["edible"].fillna("").astype(str).str.upper()
+    cc["valid"]     = cc["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+    cc = cc[cc["valid"]].copy()
+
+    # Per-species
+    species_summary = (cc.groupby("canonical_species")
+                       .agg(catches=("weight_kg", "size"),
+                            total_weight_kg=("weight_kg", "sum"),
+                            heaviest_kg=("weight_kg", "max"),
+                            avg_weight_kg=("weight_kg", "mean"))
+                       .reset_index().rename(columns={"canonical_species": "Species"})
+                       .sort_values("catches", ascending=False)
+                       .round(3))
+
+    # Per-venue (join comps → catches via comp_id)
+    if not comps_df.empty:
+        venue_map = dict(zip(comps_df["comp_id"].astype(str), comps_df["venue"]))
+        cc["venue"] = cc["comp_id"].astype(str).map(venue_map).fillna("(unknown)")
+        venue_summary = (cc.groupby("venue")
+                         .agg(catches=("weight_kg", "size"),
+                              total_weight_kg=("weight_kg", "sum"),
+                              edibles=("edible", lambda s: (s == "Y").sum()),
+                              non_edibles=("edible", lambda s: (s == "N").sum()))
+                         .reset_index().rename(columns={"venue": "Venue"})
+                         .sort_values("catches", ascending=False)
+                         .round(3))
+    else:
+        venue_summary = pd.DataFrame()
+
+    # Per-IC
+    ic_summary = (cc.groupby("comp_id")
+                  .agg(catches=("weight_kg", "size"),
+                       total_weight_kg=("weight_kg", "sum"),
+                       edibles=("edible", lambda s: (s == "Y").sum()),
+                       non_edibles=("edible", lambda s: (s == "N").sum()),
+                       unique_anglers=("wp_no", "nunique"))
+                  .reset_index().rename(columns={"comp_id": "IC"})
+                  .sort_values("IC")
+                  .round(3))
+    if not comps_df.empty:
+        ic_summary["Venue"] = ic_summary["IC"].astype(str).map(venue_map).fillna("")
+        ic_summary["Date"]  = ic_summary["IC"].astype(str).map(
+            dict(zip(comps_df["comp_id"].astype(str), comps_df["date"]))).fillna("")
+        ic_summary = ic_summary[["IC", "Date", "Venue", "catches", "total_weight_kg",
+                                  "edibles", "non_edibles", "unique_anglers"]]
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        with st.container(border=True):
+            section_label("By species")
+            st.dataframe(species_summary, use_container_width=True, hide_index=True,
+                         height=320)
+            st.download_button(
+                "⬇ Download species CSV",
+                species_summary.to_csv(index=False).encode(),
+                file_name=f"species_summary_{active}.csv",
+                mime="text/csv", key="dl_species")
+    with col2:
+        with st.container(border=True):
+            section_label("By venue")
+            if venue_summary.empty:
+                empty_state("No venues defined.", "📍")
+            else:
+                st.dataframe(venue_summary, use_container_width=True, hide_index=True,
+                             height=320)
+                st.download_button(
+                    "⬇ Download venue CSV",
+                    venue_summary.to_csv(index=False).encode(),
+                    file_name=f"venue_summary_{active}.csv",
+                    mime="text/csv", key="dl_venue")
+    with col3:
+        with st.container(border=True):
+            section_label("Per IC")
+            st.dataframe(ic_summary, use_container_width=True, hide_index=True,
+                         height=320)
+            st.download_button(
+                "⬇ Download per-IC CSV",
+                ic_summary.to_csv(index=False).encode(),
+                file_name=f"per_ic_summary_{active}.csv",
+                mime="text/csv", key="dl_per_ic")
 
 # ── Master tracker ────────────────────────────────────────────────────────
 divider_label("Master league tracker")

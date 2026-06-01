@@ -51,6 +51,12 @@ DATASETS: dict[str, dict] = {
                                   "category_label": "Angler"},
     "Club Standings":           {"kind": "ranking", "value_label": "Points",
                                   "category_label": "Club"},
+    "Catches per Species":      {"kind": "ranking", "value_label": "Catches",
+                                  "category_label": "Species"},
+    "Total Weight per Species": {"kind": "ranking", "value_label": "Weight (kg)",
+                                  "category_label": "Species"},
+    "Heaviest per Species":     {"kind": "ranking", "value_label": "Weight (kg)",
+                                  "category_label": "Species"},
 }
 
 
@@ -135,6 +141,27 @@ def get_leaderboard_data(dataset: str, scored: pd.DataFrame,
         out = (total.to_frame("Value").reset_index()
                .rename(columns={"club": "Category"})
                .sort_values("Value", ascending=False))
+
+    elif dataset == "Catches per Species":
+        sub = cc[cc["valid"]]
+        agg = (sub.groupby("canonical_species").size().reset_index(name="Value")
+               .sort_values("Value", ascending=False))
+        out = agg.rename(columns={"canonical_species": "Category"})
+
+    elif dataset == "Total Weight per Species":
+        sub = cc[cc["valid"] & (cc["weight_kg"] > 0)]
+        agg = (sub.groupby("canonical_species")["weight_kg"].sum().reset_index()
+               .rename(columns={"weight_kg": "Value"})
+               .sort_values("Value", ascending=False))
+        out = agg.rename(columns={"canonical_species": "Category"})
+
+    elif dataset == "Heaviest per Species":
+        sub = cc[cc["valid"] & (cc["weight_kg"] > 0)]
+        agg = (sub.groupby("canonical_species")["weight_kg"].max().reset_index()
+               .rename(columns={"weight_kg": "Value"})
+               .sort_values("Value", ascending=False))
+        out = agg.rename(columns={"canonical_species": "Category"})
+
     else:
         raise ValueError(f"Unhandled dataset: {dataset!r}")
 
@@ -198,6 +225,29 @@ def get_trend_data(dataset: str, scored: pd.DataFrame, anglers: pd.DataFrame, *,
         long = (sub.groupby(["Angler", "comp_id"]).size()
                 .reset_index(name="Value")
                 .rename(columns={"Angler": "Category", "comp_id": "Comp"}))
+        long = long[long["Category"].isin(keep)]
+        long["Comp"] = pd.Categorical(long["Comp"], categories=comp_order, ordered=True)
+        return long.sort_values(["Category", "Comp"])
+
+    if dataset in ("Catches per Species", "Total Weight per Species", "Heaviest per Species"):
+        sub = cc[cc["valid"] & (cc["weight_kg"] > 0 if "Weight" in dataset or "Heaviest" in dataset else True)]
+        ranking = get_leaderboard_data(dataset, scored, anglers,
+                                        top_n=top_n, comp_order=comp_order)
+        keep = ranking["Category"].tolist()
+        if dataset == "Catches per Species":
+            long = (sub.groupby(["canonical_species", "comp_id"]).size()
+                    .reset_index(name="Value")
+                    .rename(columns={"canonical_species": "Category", "comp_id": "Comp"}))
+        elif dataset == "Total Weight per Species":
+            long = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].sum()
+                    .reset_index()
+                    .rename(columns={"canonical_species": "Category",
+                                     "comp_id": "Comp", "weight_kg": "Value"}))
+        else:  # Heaviest per Species
+            long = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].max()
+                    .reset_index()
+                    .rename(columns={"canonical_species": "Category",
+                                     "comp_id": "Comp", "weight_kg": "Value"}))
         long = long[long["Category"].isin(keep)]
         long["Comp"] = pd.Categorical(long["Comp"], categories=comp_order, ordered=True)
         return long.sort_values(["Category", "Comp"])
