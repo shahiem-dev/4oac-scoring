@@ -32,6 +32,25 @@ NOMINEE_COLS  = ["trophy", "comp_id", "club", "wp_no"]
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+def _fetch_all(table: str, cols: list[str], season: str) -> list[dict[str, Any]]:
+    """Fetch every row for a season, paginating past Supabase's 1000-row cap."""
+    sb = get_supabase()
+    page = 0
+    out: list[dict[str, Any]] = []
+    while True:
+        res = (sb.table(table)
+                 .select(",".join(cols))
+                 .eq("season_id", season)
+                 .range(page * 1000, (page + 1) * 1000 - 1)
+                 .execute())
+        data = res.data or []
+        out.extend(data)
+        if len(data) < 1000:
+            break
+        page += 1
+    return out
+
+
 def _to_df(rows: list[dict[str, Any]], cols: list[str]) -> pd.DataFrame:
     """Convert Supabase response rows → DataFrame with guaranteed column set."""
     if not rows:
@@ -193,12 +212,8 @@ def save_comps(df: pd.DataFrame) -> None:
 
 def load_catches_raw() -> pd.DataFrame:
     season = get_active_season()
-    res = (get_supabase()
-           .table("catches_raw")
-           .select(",".join(RAW_COLS))
-           .eq("season_id", season)
-           .execute())
-    df = _to_df(res.data, RAW_COLS)
+    rows   = _fetch_all("catches_raw", RAW_COLS, season)
+    df = _to_df(rows, RAW_COLS)
     df["wp_no"]   = df["wp_no"].str.strip()
     df["comp_id"] = df["comp_id"].str.strip()
     return df
@@ -222,12 +237,8 @@ def load_catches_scored_raw() -> pd.DataFrame:
     app_lib.load_catches_scored() wraps this and adds the points computation.
     """
     season = get_active_season()
-    res = (get_supabase()
-           .table("catches_scored")
-           .select(",".join(SCORED_COLS))
-           .eq("season_id", season)
-           .execute())
-    df = _to_df(res.data, SCORED_COLS)
+    rows   = _fetch_all("catches_scored", SCORED_COLS, season)
+    df = _to_df(rows, SCORED_COLS)
     if df.empty:
         return df
     df["wp_no"]     = df["wp_no"].astype(str).str.strip()
@@ -257,12 +268,8 @@ def db_save_catches_scored(df: pd.DataFrame) -> None:
 
 def load_team_assignments() -> pd.DataFrame:
     season = get_active_season()
-    res = (get_supabase()
-           .table("team_assignments")
-           .select(",".join(TEAM_COLS))
-           .eq("season_id", season)
-           .execute())
-    df = _to_df(res.data, TEAM_COLS)
+    rows   = _fetch_all("team_assignments", TEAM_COLS, season)
+    df = _to_df(rows, TEAM_COLS)
     df["comp_id"]  = df["comp_id"].str.strip()
     df["wp_no"]    = df["wp_no"].str.strip()
     df["sub_team"] = df["sub_team"].str.strip().str.upper()
