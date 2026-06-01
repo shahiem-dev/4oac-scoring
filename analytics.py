@@ -245,12 +245,15 @@ def get_trend_data(dataset: str, scored: pd.DataFrame, anglers: pd.DataFrame, *,
         long["Comp"] = pd.Categorical(long["Comp"], categories=comp_order, ordered=True)
         return long.sort_values(["Category", "Comp"])
 
-    if dataset in ("Catches per Species", "Total Weight per Species", "Heaviest per Species"):
-        sub = cc[cc["valid"] & (cc["weight_kg"] > 0 if "Weight" in dataset or "Heaviest" in dataset else True)]
+    if dataset in ("Catches per Species", "Total Weight per Species",
+                   "Heaviest per Species", "All Species (Detailed)"):
+        sub = cc[cc["valid"]]
+        if dataset in ("Total Weight per Species", "Heaviest per Species"):
+            sub = sub[sub["weight_kg"] > 0]
         ranking = get_leaderboard_data(dataset, scored, anglers,
                                         top_n=top_n, comp_order=comp_order)
         keep = ranking["Category"].tolist()
-        if dataset == "Catches per Species":
+        if dataset in ("Catches per Species", "All Species (Detailed)"):
             long = (sub.groupby(["canonical_species", "comp_id"]).size()
                     .reset_index(name="Value")
                     .rename(columns={"canonical_species": "Category", "comp_id": "Comp"}))

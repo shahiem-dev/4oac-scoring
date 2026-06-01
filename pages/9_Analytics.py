@@ -73,6 +73,12 @@ with st.container(border=True):
             value=10, key="an_top_n",
             help="Pick 'All' to show every category — useful with species datasets.")
         top_n = None if top_n_raw == "All" else int(top_n_raw)
+    show_as = st.radio(
+        "Show values as", ["Absolute", "% of total in scope"],
+        horizontal=True, key="an_show_as",
+        help="'% of total' converts every value into its share of the total "
+             "across the filtered catches. Affects bar, pie, line and Per IC tabs.")
+    as_percent = show_as.startswith("%")
 
 # Apply IC + venue filters (intersection — each IC remains a distinct group)
 if ic_picks:
@@ -107,6 +113,34 @@ ranking = get_leaderboard_data(dataset, catches_f, anglers_f,
                                 best_n=n_eff)
 
 title = f"{dataset} — {('All' if top_n is None else f'Top {top_n}')}"
+if as_percent:
+    title += " (% of total)"
+
+
+def _to_percent(df, value_col="Value"):
+    """Convert absolute Value to % of total across all rows in df (in place copy)."""
+    if df.empty or value_col not in df.columns:
+        return df
+    df = df.copy()
+    total = df[value_col].sum()
+    if total > 0:
+        df[value_col] = (df[value_col] / total * 100).round(2)
+    return df
+
+
+def _to_percent_per_comp(df):
+    """For trend data (long form with Comp column): % within each Comp."""
+    if df.empty or "Comp" not in df.columns:
+        return df
+    df = df.copy()
+    totals = df.groupby("Comp", observed=False)["Value"].transform("sum")
+    df["Value"] = (df["Value"] / totals.replace(0, 1) * 100).round(2)
+    return df
+
+
+# Apply percentage view to ranking if requested
+display_ranking = _to_percent(ranking) if as_percent else ranking
+display_value_label = "% of total" if as_percent else meta["value_label"]
 if use_best_n and dataset in ("Overall Points per Angler", "Club Standings"):
     title += f" (best {BEST_N_DEFAULT} of {len(comp_order)})"
 
@@ -130,9 +164,9 @@ with tab_bar:
     if ranking.empty:
         _no_data()
     else:
-        chart_data = ranking[["Category", "Value"]].copy()
+        chart_data = display_ranking[["Category", "Value"]].copy()
         fig = render_chart(chart_data, "bar", title=title,
-                           value_label=meta["value_label"],
+                           value_label=display_value_label,
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
@@ -146,9 +180,9 @@ with tab_pie:
             st.info(
                 "Pie charts work best with grouped categories (clubs, divisions). "
                 "For individual catches, the **Bar chart** tab is clearer.")
-        chart_data = ranking[["Category", "Value"]].copy()
+        chart_data = display_ranking[["Category", "Value"]].copy()
         fig = render_chart(chart_data, "pie", title=title,
-                           value_label=meta["value_label"],
+                           value_label=display_value_label,
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
@@ -164,18 +198,19 @@ with tab_line:
                 "This dataset contains single catches — use **Bar** or **Pie** instead.")
         chart_data = get_trend_data(dataset, catches_f, anglers_f,
                                      top_n=top_n, comp_order=comp_order)
+        if as_percent:
+            chart_data = _to_percent_per_comp(chart_data)
         # Relabel Comp -> "IC N (YYYY-MM-DD · Venue)" so the line x-axis carries dates+venues
         if not chart_data.empty:
             chart_data = chart_data.copy()
             chart_data["Comp"] = chart_data["Comp"].astype(str).map(_ic_label)
-            # Preserve chronological order
             ordered_labels = [_ic_label(c) for c in comp_order]
             import pandas as _pd
             chart_data["Comp"] = _pd.Categorical(chart_data["Comp"],
                                                  categories=ordered_labels, ordered=True)
             chart_data = chart_data.sort_values(["Category", "Comp"])
         fig = render_chart(chart_data, "line", title=title,
-                           value_label=meta["value_label"],
+                           value_label=display_value_label,
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
@@ -187,22 +222,34 @@ with tab_per_ic:
     if chart_data.empty:
         _no_data()
     else:
-        # Pivot to wide: rows=Category, cols=Comp, values=Value
         import pandas as _pd
         wide = (chart_data.pivot_table(index="Category", columns="Comp",
                                          values="Value", aggfunc="sum",
                                          observed=False)
                 .fillna(0))
-        # Each column header = "IC N (date · venue)" so trends are dated
         wide = wide.reindex(columns=comp_order, fill_value=0)
-        wide.columns = [_ic_label(str(c)) for c in wide.columns]
-        wide["Total"] = wide.sum(axis=1)
+        # Compute Total from absolutes (before % conversion)
+        wide["Total"] = wide[comp_order].sum(axis=1)
+        if as_percent:
+            # Each cell becomes % within its IC column
+            for c in comp_order:
+                total_c = wide[c].sum()
+                if total_c > 0:
+                    wide[c] = (wide[c] / total_c * 100).round(2)
+            # Total column becomes % of grand total
+            grand = wide["Total"].sum()
+            wide["Total"] = (wide["Total"] / grand * 100).round(2) if grand > 0 else 0
+        # Label columns with date + venue, sort by Total desc
         wide = wide.sort_values("Total", ascending=False)
         if top_n is not None:
             wide = wide.head(top_n)
-        # Format numbers without matplotlib gradient (keeps deps minimal)
+        wide.columns = [_ic_label(str(c)) if c != "Total" else "Total" for c in wide.columns]
+        # Format
         is_weight = meta["value_label"].lower().startswith("weight")
-        fmt = "{:,.2f}" if is_weight else "{:,.0f}"
+        if as_percent:
+            fmt = "{:,.2f}%"
+        else:
+            fmt = "{:,.2f}" if is_weight else "{:,.0f}"
         st.dataframe(wide.style.format(fmt), use_container_width=True)
         st.download_button(
             "⬇ Download per-IC CSV",
@@ -216,17 +263,17 @@ with tab_table:
         _no_data()
     else:
         section_label(f"{dataset} — {('all' if top_n is None else f'top {top_n}')}")
-        st.dataframe(highlight_leader(ranking),
+        st.dataframe(highlight_leader(display_ranking),
                      use_container_width=True, hide_index=True)
-        if not ranking.empty:
-            top_row = ranking.iloc[0]
+        if not display_ranking.empty:
+            top_row = display_ranking.iloc[0]
             leader_banner(
                 "🥇",
                 str(top_row["Category"]),
-                pts=f"{top_row['Value']:,.2f} {meta['value_label']}")
+                pts=f"{top_row['Value']:,.2f} {display_value_label}")
         st.download_button(
             "⬇ Download CSV",
-            ranking.to_csv(index=False).encode(),
+            display_ranking.to_csv(index=False).encode(),
             file_name=f"{dataset.replace(' ', '_').lower()}_{('all' if top_n is None else f'top{top_n}')}.csv",
             mime="text/csv",
         )
