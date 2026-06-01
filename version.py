@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 
 # ── Version ──────────────────────────────────────────────────────────────
-__version__   = "1.2.0"
+__version__   = "1.3.0"
 __build_date__ = "2026-06-01"
 
 # ── Environment detection ─────────────────────────────────────────────────
