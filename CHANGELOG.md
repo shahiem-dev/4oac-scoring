@@ -1,0 +1,96 @@
+# Changelog
+
+All notable changes to the WCSAA Scoring System are documented here.
+
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+Version scheme: **MAJOR.MINOR.PATCH**
+- MAJOR — breaking change to data schema or scoring rules
+- MINOR — new feature, new page, new trophy
+- PATCH — bug fix, UI tweak, data correction
+
+---
+
+## [Unreleased]
+> Changes merged to `staging` but not yet promoted to `main`.
+
+---
+
+## [1.2.0] — 2026-06-01
+
+### Added
+- Password authentication on all pages via `auth.py` + Streamlit secrets
+- Analytics page: Bar / Pie / Line chart tabs (chart type moved from sidebar to main tabs)
+- `version.py` — version constant, environment detection, sidebar badge
+- `CHANGELOG.md` — this file
+- Staging branch + Streamlit Cloud staging app
+
+### Fixed
+- All WP numbers normalised to 4-digit zero-padded format (`WP481` → `WP0481`) in anglers, catches_raw and catches_scored — resolves `(unknown)` angler names in Analytics / Leaderboards
+- Deduplicated 3 FOUR OCEANS anglers that had been imported without SA numbers
+- Deduplicated UNKNOWN anglers in 2025-26 season
+
+---
+
+## [1.1.0] — 2026-06-01
+
+### Added
+- `ui.py` — shared component library: `page_header()`, `kpi_row()`, `leader_banner()`, `section_label()`, `divider_label()`, `empty_state()`, `status_pill()`
+- `theme.py` — `_component_css()` adds ~230 lines of component CSS (cards, KPI tiles, badges, mobile responsive)
+- All 10 pages updated with new components; consistent gradient page headers across the app
+- Leader banners (gold accent) under every standings / trophy table
+- KPI metric tiles on Home and Standings pages
+- Bordered card containers on key form sections
+- Mobile-responsive CSS breakpoint at 768px
+
+### Changed
+- Home: `st.metric()` → `kpi_row()` HTML tiles with accent borders
+- All pages: `st.title()` → `page_header()` gradient header strip
+- All pages: `st.success("🥇 …")` → `leader_banner()` gold-accent banner
+- Download buttons styled as outlined secondary buttons
+
+---
+
+## [1.0.0] — 2026-05-01
+
+### Added
+- Core scoring engine: 4 pts/kg edible (min 0.5 kg), 1 pt/kg non-edible (min 1 kg)
+- Flat-point species: Gurnard / Catfish = 1 pt flat
+- Best-N-of-M drop-lowest scoring
+- Season management: create / switch / delete seasons
+- Clubs & Anglers management with logo uploads
+- Competitions: schedule, team selection (A–I), SDC nominees
+- Catches: bulk capture with sticky comp + angler
+- Standings: club sub-teams, individual, per-division, club drilldown
+- Trophies: Masters-Four, Sir Drummond Chapman, Wallace van Wyk, Radio Good Hope, N.J. van As, Mutual, Syfie Douglas, Willie Morries, Piet Alberts, Blue Ray, Mario Texeira, Station Motors
+- Reports: 7 per-competition XLSX reports + master tracker workbook
+- Leaderboards: heaviest edible/non-edible, catches per club, most fish per angler
+- Analytics: interactive Plotly charts with global filters
+- Theme system: 6 presets + full colour customisation
+- Species master + aliases + SASAA weight formula
+
+---
+
+## Branching & Release Workflow
+
+```
+main        ← production (Streamlit Cloud: wcsaa-scoring)
+staging     ← staging    (Streamlit Cloud: wcsaa-scoring-staging)
+feature/xxx ← feature branches (PR target: staging)
+```
+
+### To release a feature
+1. `git checkout staging && git pull`
+2. `git checkout -b feature/my-feature`
+3. Make changes, commit, push
+4. Open PR: `feature/my-feature` → `staging` on GitHub
+5. Test on the staging Streamlit Cloud app
+6. When satisfied, open PR: `staging` → `main`
+7. Bump `__version__` in `version.py` and add entry to `CHANGELOG.md`
+8. Merge to `main` — production auto-redeploys
+
+### To hotfix production directly
+1. `git checkout main && git pull`
+2. `git checkout -b hotfix/description`
+3. Fix, bump PATCH version, update CHANGELOG
+4. PR: `hotfix/description` → `main`
+5. After merge, backport: `git checkout staging && git merge main`

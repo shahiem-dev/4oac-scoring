@@ -543,6 +543,7 @@ def render_season_sidebar() -> str:
     Also injects the global theme CSS so every page is styled consistently.
     """
     from theme import inject_css
+    from version import version_footer_html
     inject_css()
     active = get_active_season()
     with st.sidebar:
@@ -554,4 +555,5 @@ def render_season_sidebar() -> str:
             set_active_season(pick)
             st.rerun()
         st.caption("Switch / create / clear on **Settings**.")
+        st.markdown(version_footer_html(), unsafe_allow_html=True)
     return pick
