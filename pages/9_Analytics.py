@@ -41,31 +41,41 @@ all_comps   = sorted(catches_f["comp_id"].astype(str).unique().tolist())
 all_venues  = sorted(comps_df["venue"].dropna().unique().tolist()) if not comps_df.empty else []
 venue_by_id = dict(zip(comps_df["comp_id"].astype(str), comps_df["venue"])) if not comps_df.empty else {}
 
+date_by_id  = dict(zip(comps_df["comp_id"].astype(str), comps_df["date"])) if not comps_df.empty else {}
+
+def _ic_label(cid: str) -> str:
+    parts = [f"IC {cid}"]
+    if cid in date_by_id and date_by_id[cid]:
+        parts.append(str(date_by_id[cid]))
+    if cid in venue_by_id and venue_by_id[cid]:
+        parts.append(venue_by_id[cid])
+    return " · ".join(parts)
+
 with st.container(border=True):
     section_label("Filters")
-    c1, c2, c3, c4 = st.columns([2, 2, 3, 1])
+    c1, c2, c3, c4 = st.columns([3, 2, 3, 1])
     with c1:
-        ic_pick = st.selectbox(
-            "Competition (IC)", ["All"] + [f"IC {c}" for c in all_comps],
-            key="an_ic_pick")
+        ic_picks = st.multiselect(
+            "Competitions (IC)", all_comps,
+            default=all_comps,
+            format_func=_ic_label,
+            key="an_ic_picks",
+            help="Each selected IC is shown separately — no aggregation.")
     with c2:
-        venue_pick = st.selectbox(
-            "Venue", ["All"] + all_venues, key="an_venue_pick",
-            disabled=ic_pick != "All",
-            help="Filter all competitions at a venue. Disabled when a specific IC is picked.")
+        venue_picks = st.multiselect(
+            "Venues", all_venues, default=all_venues, key="an_venue_picks",
+            help="Each venue's catches are kept separate per IC.")
     with c3:
         dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
     with c4:
         top_n = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
                                   value=10, key="an_top_n")
 
-# Apply IC filter
-if ic_pick != "All":
-    pick_id = ic_pick.split(" ", 1)[1]
-    catches_f = catches_f[catches_f["comp_id"].astype(str) == pick_id]
-# Apply venue filter (only when IC is "All")
-elif venue_pick != "All":
-    venue_comp_ids = [cid for cid, v in venue_by_id.items() if v == venue_pick]
+# Apply IC + venue filters (intersection — each IC remains a distinct group)
+if ic_picks:
+    catches_f = catches_f[catches_f["comp_id"].astype(str).isin(ic_picks)]
+if venue_picks and venue_picks != all_venues:
+    venue_comp_ids = {cid for cid, v in venue_by_id.items() if v in venue_picks}
     catches_f = catches_f[catches_f["comp_id"].astype(str).isin(venue_comp_ids)]
 
 if catches_f.empty:
@@ -73,13 +83,9 @@ if catches_f.empty:
     st.stop()
 
 comp_order = sorted(catches_f["comp_id"].astype(str).unique().tolist())
-
-# Caption: show what we're showing
-scope = (f"**IC {ic_pick.split(' ',1)[1]}** (venue: {venue_by_id.get(ic_pick.split(' ',1)[1], '?')})"
-         if ic_pick != "All"
-         else (f"venue **{venue_pick}**" if venue_pick != "All"
-               else "**entire season**"))
-st.caption(f"Showing {scope} — {len(catches_f)} catches.")
+st.caption(f"Showing **{len(comp_order)} competition(s)** across "
+           f"**{len({venue_by_id.get(c, '?') for c in comp_order})} venue(s)** — "
+           f"{len(catches_f)} catches.")
 
 # ── Best-N toggle (sidebar) ───────────────────────────────────────────────
 with st.sidebar:
@@ -155,6 +161,16 @@ with tab_line:
                 "This dataset contains single catches — use **Bar** or **Pie** instead.")
         chart_data = get_trend_data(dataset, catches_f, anglers_f,
                                      top_n=top_n, comp_order=comp_order)
+        # Relabel Comp -> "IC N (YYYY-MM-DD · Venue)" so the line x-axis carries dates+venues
+        if not chart_data.empty:
+            chart_data = chart_data.copy()
+            chart_data["Comp"] = chart_data["Comp"].astype(str).map(_ic_label)
+            # Preserve chronological order
+            ordered_labels = [_ic_label(c) for c in comp_order]
+            import pandas as _pd
+            chart_data["Comp"] = _pd.Categorical(chart_data["Comp"],
+                                                 categories=ordered_labels, ordered=True)
+            chart_data = chart_data.sort_values(["Category", "Comp"])
         fig = render_chart(chart_data, "line", title=title,
                            value_label=meta["value_label"],
                            category_label=meta["category_label"])
@@ -174,7 +190,9 @@ with tab_per_ic:
                                          values="Value", aggfunc="sum",
                                          observed=False)
                 .fillna(0))
-        wide.columns = [f"IC {c}" for c in wide.columns]
+        # Each column header = "IC N (date · venue)" so trends are dated
+        wide = wide.reindex(columns=comp_order, fill_value=0)
+        wide.columns = [_ic_label(str(c)) for c in wide.columns]
         wide["Total"] = wide.sum(axis=1)
         wide = wide.sort_values("Total", ascending=False).head(top_n)
         # Format numbers without matplotlib gradient (keeps deps minimal)
