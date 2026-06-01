@@ -142,6 +142,47 @@ else:
                 file_name=f"per_ic_summary_{active}.csv",
                 mime="text/csv", key="dl_per_ic")
 
+    # ── Species composition per IC ─────────────────────────────────────
+    section_label("Species composition per IC (counts + % share)")
+    if not comps_df.empty:
+        ic_label_map = {cid: f"IC {cid} ({d} · {v})"
+                        for cid, d, v in zip(
+                            comps_df["comp_id"].astype(str),
+                            comps_df["date"],
+                            comps_df["venue"])}
+    else:
+        ic_label_map = {cid: f"IC {cid}" for cid in cc["comp_id"].astype(str).unique()}
+    cc["comp_label"] = cc["comp_id"].astype(str).map(ic_label_map)
+    ordered_ic_labels = [ic_label_map[c] for c in
+                          sorted(cc["comp_id"].astype(str).unique(),
+                                 key=lambda x: (len(x), x))
+                          if c in ic_label_map]
+
+    # Counts
+    counts = (cc.groupby(["canonical_species", "comp_label"]).size()
+              .reset_index(name="Catches"))
+    totals_per_ic = counts.groupby("comp_label")["Catches"].transform("sum")
+    counts["% of IC"] = (counts["Catches"] / totals_per_ic * 100).round(1)
+    pivot_n = counts.pivot_table(index="canonical_species", columns="comp_label",
+                                  values="Catches", aggfunc="sum", observed=False).fillna(0)
+    pivot_p = counts.pivot_table(index="canonical_species", columns="comp_label",
+                                  values="% of IC", aggfunc="sum", observed=False).fillna(0)
+    species_comp = pd.concat({"Catches": pivot_n, "% of IC": pivot_p}, axis=1)
+    new_cols = []
+    for ic in ordered_ic_labels:
+        if ("Catches", ic) in species_comp.columns:
+            new_cols += [("Catches", ic), ("% of IC", ic)]
+    species_comp = species_comp[new_cols]
+    species_comp[("Total", "Catches")] = pivot_n.sum(axis=1)
+    species_comp = species_comp.sort_values(("Total", "Catches"), ascending=False)
+
+    st.dataframe(species_comp, use_container_width=True, height=420)
+    st.download_button(
+        "⬇ Download species-composition CSV",
+        species_comp.to_csv().encode(),
+        file_name=f"species_composition_per_ic_{active}.csv",
+        mime="text/csv", key="dl_species_comp")
+
 # ── Master tracker ────────────────────────────────────────────────────────
 divider_label("Master league tracker")
 with st.container(border=True):

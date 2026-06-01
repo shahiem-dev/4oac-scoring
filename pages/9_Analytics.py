@@ -225,3 +225,84 @@ with tab_table:
             file_name=f"{dataset.replace(' ', '_').lower()}_top{top_n}.csv",
             mime="text/csv",
         )
+
+# ── Species composition per IC ────────────────────────────────────────────
+divider_label("Species composition per competition")
+import pandas as _pd
+import plotly.express as _px
+
+cc = catches_f.copy()
+cc["weight_kg"] = _pd.to_numeric(cc["weight_kg"], errors="coerce").fillna(0.0)
+cc["valid"]    = cc["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+cc = cc[cc["valid"]].copy()
+cc["comp_label"] = cc["comp_id"].astype(str).map(_ic_label)
+
+with st.container(border=True):
+    section_label("Choose metric")
+    metric = st.radio(
+        "Show composition by", ["Catch count", "Total weight (kg)"],
+        horizontal=True, key="an_spec_metric")
+
+    if cc.empty:
+        empty_state("No catches match the current filters.", "🐟")
+    else:
+        # Aggregate species × IC
+        if metric == "Catch count":
+            agg = (cc.groupby(["comp_label", "canonical_species"]).size()
+                   .reset_index(name="Value"))
+            vfmt = "{:,.0f}"
+        else:
+            agg = (cc.groupby(["comp_label", "canonical_species"])["weight_kg"].sum()
+                   .reset_index().rename(columns={"weight_kg": "Value"}))
+            vfmt = "{:,.2f}"
+
+        # Per-comp total, then % share per species
+        comp_totals = agg.groupby("comp_label")["Value"].transform("sum")
+        agg["% of IC"] = (agg["Value"] / comp_totals * 100).round(1)
+
+        # Preserve IC order chronologically
+        ordered_labels = [_ic_label(c) for c in comp_order]
+        agg["comp_label"] = _pd.Categorical(agg["comp_label"],
+                                            categories=ordered_labels, ordered=True)
+        agg = agg.sort_values(["comp_label", "Value"], ascending=[True, False])
+
+        # ── Stacked bar chart ─────────────────────────────────────────────
+        fig = _px.bar(
+            agg, x="comp_label", y="Value", color="canonical_species",
+            title=f"Species composition per competition — {metric}",
+            labels={"comp_label": "Competition", "Value": metric,
+                    "canonical_species": "Species"},
+            text="Value",
+        )
+        fig.update_layout(barmode="stack", xaxis_tickangle=-25, height=520)
+        fig.update_traces(texttemplate=("%{y:.0f}" if metric == "Catch count" else "%{y:.1f}"),
+                          textposition="inside", insidetextanchor="middle")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # ── Pivot: species rows × IC columns, with % share per IC ────────
+        section_label("Counts and percentages by IC")
+        pivot_val = agg.pivot_table(index="canonical_species", columns="comp_label",
+                                     values="Value", aggfunc="sum", observed=False).fillna(0)
+        pivot_pct = agg.pivot_table(index="canonical_species", columns="comp_label",
+                                     values="% of IC", aggfunc="sum", observed=False).fillna(0)
+        # Combine into one frame with two-row column headers (Value, % of IC)
+        pivot_combo = _pd.concat({"Value": pivot_val, "% of IC": pivot_pct}, axis=1)
+        # Reorder so each IC has Value+% adjacent
+        new_cols = []
+        for ic in ordered_labels:
+            if ("Value", ic) in pivot_combo.columns:
+                new_cols += [("Value", ic), ("% of IC", ic)]
+        pivot_combo = pivot_combo[new_cols]
+        # Add a Total column
+        pivot_combo[("Total", metric)] = pivot_val.sum(axis=1)
+        pivot_combo = pivot_combo.sort_values(("Total", metric), ascending=False)
+        # Format
+        fmt_map = {col: (vfmt if col[0] in ("Value", "Total") else "{:,.1f}%")
+                   for col in pivot_combo.columns}
+        st.dataframe(pivot_combo.style.format(fmt_map), use_container_width=True)
+
+        st.download_button(
+            "⬇ Download species-composition CSV",
+            pivot_combo.to_csv().encode(),
+            file_name=f"species_composition_per_ic_{active}.csv",
+            mime="text/csv", key="an_spec_dl")
