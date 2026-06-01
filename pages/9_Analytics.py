@@ -153,14 +153,10 @@ with tab_per_ic:
         wide.columns = [f"IC {c}" for c in wide.columns]
         wide["Total"] = wide.sum(axis=1)
         wide = wide.sort_values("Total", ascending=False).head(top_n)
-        # Style numbers
-        fmt = "{:.2f}" if meta["value_label"].lower().startswith("weight") else "{:,.0f}"
-        st.dataframe(
-            wide.style.format(fmt).background_gradient(cmap="Blues",
-                                                       subset=wide.columns[:-1])
-                      .format("{:,.2f}" if meta["value_label"].lower().startswith("weight")
-                              else "{:,.0f}", subset=["Total"]),
-            use_container_width=True)
+        # Format numbers without matplotlib gradient (keeps deps minimal)
+        is_weight = meta["value_label"].lower().startswith("weight")
+        fmt = "{:,.2f}" if is_weight else "{:,.0f}"
+        st.dataframe(wide.style.format(fmt), use_container_width=True)
         st.download_button(
             "⬇ Download per-IC CSV",
             wide.to_csv().encode(),
