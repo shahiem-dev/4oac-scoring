@@ -31,6 +31,55 @@ def run(cmd: list[str]) -> tuple[bool, str]:
 
 comps = comp_options()
 
+# ── All anglers download (CSV + XLSX) ─────────────────────────────────────
+import io
+divider_label("All anglers — quick export")
+all_anglers_df = load_anglers()
+if all_anglers_df.empty:
+    empty_state("No anglers in this season yet.", "🎣")
+else:
+    # Friendly column order + headers
+    display_cols = ["wp_no", "sasaa_no", "first_name", "surname", "club",
+                    "sub_team", "league_code", "league_division"]
+    display_cols = [c for c in display_cols if c in all_anglers_df.columns]
+    df = all_anglers_df[display_cols].copy()
+    df = df.sort_values(["club", "surname", "first_name"], na_position="last")
+    pretty = df.rename(columns={
+        "wp_no": "WP No", "sasaa_no": "SASAA No",
+        "first_name": "First Name", "surname": "Surname",
+        "club": "Club", "sub_team": "Sub-team",
+        "league_code": "Division Code", "league_division": "Division",
+    })
+
+    c1, c2, c3 = st.columns([3, 1, 1])
+    with c1:
+        kpi_row([
+            {"icon": "👥", "label": "Anglers", "value": len(pretty)},
+            {"icon": "🏠", "label": "Clubs",   "value": pretty["Club"].nunique()},
+        ])
+    with c2:
+        st.download_button(
+            "⬇ CSV",
+            pretty.to_csv(index=False).encode("utf-8"),
+            file_name=f"anglers_{active}.csv",
+            mime="text/csv", use_container_width=True, key="dl_anglers_csv")
+    with c3:
+        xlsx_buf = io.BytesIO()
+        with pd.ExcelWriter(xlsx_buf, engine="openpyxl") as writer:
+            pretty.to_excel(writer, sheet_name="All Anglers", index=False)
+            # Also write one sheet per club for easy navigation
+            for club, group in pretty.groupby("Club"):
+                sheet = (club or "Unknown")[:31]  # Excel sheet name limit
+                group.to_excel(writer, sheet_name=sheet, index=False)
+        st.download_button(
+            "⬇ Excel",
+            xlsx_buf.getvalue(),
+            file_name=f"anglers_{active}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True, key="dl_anglers_xlsx")
+    st.dataframe(pretty, use_container_width=True, hide_index=True, height=300)
+
+
 # ── Per-competition reports ───────────────────────────────────────────────
 with st.container(border=True):
     section_label("Per-competition reports (7 files)")
