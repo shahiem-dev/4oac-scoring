@@ -1,0 +1,9 @@
+{
+  "_comment": "Per-competition club overrides for anglers who changed clubs mid-season. Schema: list of {season_id, comp_id, wp_no, club}. The override only applies to that specific competition's catches; the angler's anglers.club field stays as their current/latest club.",
+  "overrides": [
+    {"season_id": "2025-26", "comp_id": "1", "wp_no": "WP1010", "club": "FOUR OCEANS", "note": "Ethan Woodman — at FOUR OCEANS until end of IC 2, then moved to TYGERBERG"},
+    {"season_id": "2025-26", "comp_id": "2", "wp_no": "WP1010", "club": "FOUR OCEANS", "note": "Ethan Woodman — at FOUR OCEANS until end of IC 2"},
+    {"season_id": "2025-26", "comp_id": "1", "wp_no": "WP1098", "club": "FOUR OCEANS", "note": "R Le Chet — at FOUR OCEANS until end of IC 2, then moved to TYGERBERG"},
+    {"season_id": "2025-26", "comp_id": "2", "wp_no": "WP1098", "club": "FOUR OCEANS", "note": "R Le Chet — at FOUR OCEANS until end of IC 2"}
+  ]
+}

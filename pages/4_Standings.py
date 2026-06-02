@@ -34,9 +34,11 @@ if catches.empty:
     st.stop()
 
 # ── Enrich ────────────────────────────────────────────────────────────────
+from trophies import _apply_club_overrides
 cc = resolve_sub_team(catches, anglers).merge(
     anglers.drop(columns=["sub_team"], errors="ignore"), on="wp_no", how="left")
 cc["club"]     = cc["club"].fillna("UNKNOWN").replace("", "UNKNOWN")
+cc = _apply_club_overrides(cc)
 cc["sub_team"] = cc["sub_team"].fillna("").astype(str).str.upper().str.strip()
 cc["Angler"]   = (cc["first_name"].fillna("") + " " + cc["surname"].fillna("")).str.strip()
 cc.loc[cc["Angler"] == "", "Angler"] = "(unknown)"
