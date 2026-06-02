@@ -7,8 +7,9 @@ from auth import require_login, logout, current_user, is_admin
 from app_lib import (EDIBLE_PTS_PER_KG, NON_EDIBLE_PTS_PER_KG, apply_filters,
                      get_logo_bytes, load_anglers, load_catches_scored,
                      load_comps, manage_logo, render_global_filters,
-                     render_season_sidebar)
+                     render_season_sidebar, resolve_sub_team)
 from standings import BEST_N_DEFAULT, apply_best_n, per_entity_per_comp
+from trophies import _apply_club_overrides
 from ui import divider_label, kpi_row, leader_banner, page_header, section_label
 
 st.set_page_config(page_title="WCSAA League", page_icon="🎣", layout="wide")
@@ -55,8 +56,12 @@ kpi_row([
 
 # ── Standings ─────────────────────────────────────────────────────────────
 if not catches.empty:
-    cc = catches.merge(anglers[["wp_no", "club"]], on="wp_no", how="left")
-    cc["club"] = cc["club"].fillna("UNKNOWN").replace("", "UNKNOWN")
+    # Same enrichment as Standings page so club totals respect sub-team + overrides
+    cc = resolve_sub_team(catches, anglers).merge(
+        anglers[["wp_no", "club"]], on="wp_no", how="left")
+    cc["club"]     = cc["club"].fillna("UNKNOWN").replace("", "UNKNOWN")
+    cc["sub_team"] = cc["sub_team"].fillna("").astype(str).str.upper().str.strip()
+    cc = _apply_club_overrides(cc)
     comp_order = sorted(catches["comp_id"].unique().tolist())
 
     use_best_n = st.toggle(
@@ -70,11 +75,18 @@ if not catches.empty:
 
     with left:
         with st.container(border=True):
-            section_label("Club Standings")
-            m = per_entity_per_comp(cc, "club", comp_order)
-            _, _, total = apply_best_n(m, n=n_eff)
-            club_tot = total.sort_values(ascending=False).reset_index()
-            club_tot.columns = ["Club", "Points"]
+            section_label("Club Standings (PNTS A + B)")
+            # Per WCSAA rules: official club standings = sum of points from
+            # sub-teams A and B only. Other sub-teams (C–I) count in PDF reports
+            # but do NOT contribute to the league club ranking.
+            ab = cc[cc["sub_team"].isin(["A", "B"])].copy()
+            if ab.empty:
+                club_tot = pd.DataFrame(columns=["Club", "Points"])
+            else:
+                m = per_entity_per_comp(ab, "club", comp_order)
+                _, _, total = apply_best_n(m, n=n_eff)
+                club_tot = total.sort_values(ascending=False).reset_index()
+                club_tot.columns = ["Club", "Points"]
             club_tot.insert(0, "Pos.", range(1, len(club_tot) + 1))
             st.dataframe(club_tot, use_container_width=True, hide_index=True)
             if not club_tot.empty:
