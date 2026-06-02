@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 
 # ── Version ──────────────────────────────────────────────────────────────
-__version__   = "1.2.0"
+__version__   = "1.3.0"
 __build_date__ = "2026-06-01"
 
 # ── Environment detection ─────────────────────────────────────────────────
@@ -48,6 +48,26 @@ def env_badge_html() -> str:
         '<span style="background:#16A34A;color:#fff;font-size:0.65rem;'
         'font-weight:700;padding:2px 8px;border-radius:10px;'
         'text-transform:uppercase;letter-spacing:0.06em;">✓ Production</span>'
+    )
+
+
+def staging_banner() -> None:
+    """Render a prominent top-of-page staging banner when IS_STAGING is True.
+
+    Call once near the top of each page (or from page_header).
+    No-ops in production.
+    """
+    if not IS_STAGING:
+        return
+    import streamlit as st
+    st.markdown(
+        '<div style="background:linear-gradient(90deg,#F59E0B,#D97706);'
+        'color:#fff;text-align:center;padding:10px 0;font-size:1.05rem;'
+        'font-weight:700;letter-spacing:0.08em;position:relative;'
+        'z-index:9999;border-radius:0 0 8px 8px;margin:-1rem -1rem 1rem -1rem;">'
+        '⚗️&nbsp; WCSAA STAGING &nbsp;⚗️'
+        '</div>',
+        unsafe_allow_html=True,
     )
 
 

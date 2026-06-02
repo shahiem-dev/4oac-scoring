@@ -1,6 +1,7 @@
 """Analytics — interactive charts driven by sidebar controls."""
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 from auth import require_login
@@ -9,7 +10,7 @@ require_login()
 from analytics import (DATASETS, get_leaderboard_data, get_trend_data,
                        render_chart)
 from app_lib import (apply_filters, highlight_leader, load_anglers,
-                     load_catches_scored, render_global_filters,
+                     load_catches_scored, load_comps, render_global_filters,
                      render_season_sidebar)
 from standings import BEST_N_DEFAULT
 from ui import divider_label, empty_state, leader_banner, page_header, section_label
@@ -35,14 +36,78 @@ if catches_f.empty:
     st.warning("No catches match the current filters.")
     st.stop()
 
-comp_order = sorted(catches_f["comp_id"].astype(str).unique().tolist())
+# ── Main-area controls (IC + Venue + Dataset + Top-N) ────────────────────
+comps_df    = load_comps()
+all_comps   = sorted(catches_f["comp_id"].astype(str).unique().tolist())
+all_venues  = sorted(comps_df["venue"].dropna().unique().tolist()) if not comps_df.empty else []
+venue_by_id = dict(zip(comps_df["comp_id"].astype(str), comps_df["venue"])) if not comps_df.empty else {}
 
-# ── Dataset + Top-N controls (sidebar) ───────────────────────────────────
+date_by_id  = dict(zip(comps_df["comp_id"].astype(str), comps_df["date"])) if not comps_df.empty else {}
+
+def _ic_label(cid: str) -> str:
+    parts = [f"IC {cid}"]
+    if cid in date_by_id and date_by_id[cid]:
+        parts.append(str(date_by_id[cid]))
+    if cid in venue_by_id and venue_by_id[cid]:
+        parts.append(venue_by_id[cid])
+    return " · ".join(parts)
+
+with st.container(border=True):
+    section_label("Filters")
+    c1, c2, c3, c4 = st.columns([3, 2, 3, 1])
+    with c1:
+        ic_picks = st.multiselect(
+            "Competitions (IC)", all_comps,
+            default=all_comps,
+            format_func=_ic_label,
+            key="an_ic_picks",
+            help="Each selected IC is shown separately — no aggregation.")
+    with c2:
+        venue_picks = st.multiselect(
+            "Venues", all_venues, default=all_venues, key="an_venue_picks",
+            help="Each venue's catches are kept separate per IC.")
+    with c3:
+        dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
+    with c4:
+        top_n_raw = st.select_slider(
+            "Top N", options=[5, 10, 15, 20, 30, 50, "All"],
+            value=10, key="an_top_n",
+            help="Pick 'All' to show every category — useful with species datasets.")
+        top_n = None if top_n_raw == "All" else int(top_n_raw)
+    fcol1, fcol2 = st.columns(2)
+    with fcol1:
+        unit_choice = st.radio(
+            "Units (species datasets)",
+            ["Catches (count)", "Weight (kg)"],
+            horizontal=True, key="an_unit_choice",
+            help="Choose count vs kg for species charts. Ignored for non-species datasets.")
+    with fcol2:
+        as_choice = st.radio(
+            "Show as", ["Absolute", "% of total in scope"],
+            horizontal=True, key="an_show_as",
+            help="'% of total' converts to share of the total across filtered catches.")
+    use_weight = unit_choice == "Weight (kg)"
+    as_percent = as_choice.startswith("%")
+
+# Apply IC + venue filters (intersection — each IC remains a distinct group)
+if ic_picks:
+    catches_f = catches_f[catches_f["comp_id"].astype(str).isin(ic_picks)]
+if venue_picks and venue_picks != all_venues:
+    venue_comp_ids = {cid for cid, v in venue_by_id.items() if v in venue_picks}
+    catches_f = catches_f[catches_f["comp_id"].astype(str).isin(venue_comp_ids)]
+
+if catches_f.empty:
+    st.warning("No catches match the current filters.")
+    st.stop()
+
+comp_order = sorted(catches_f["comp_id"].astype(str).unique().tolist())
+st.caption(f"Showing **{len(comp_order)} competition(s)** across "
+           f"**{len({venue_by_id.get(c, '?') for c in comp_order})} venue(s)** — "
+           f"{len(catches_f)} catches.")
+
+# ── Best-N toggle (sidebar) ───────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 📊 Chart controls")
-    dataset = st.selectbox("Dataset", list(DATASETS.keys()), key="an_dataset")
-    top_n   = st.select_slider("Top N", options=[5, 10, 15, 20, 30, 50],
-                                value=10, key="an_top_n")
     use_best_n = st.toggle(
         f"Best {BEST_N_DEFAULT} of {len(comp_order)}",
         value=False,
@@ -56,13 +121,71 @@ ranking = get_leaderboard_data(dataset, catches_f, anglers_f,
                                 top_n=top_n, comp_order=comp_order,
                                 best_n=n_eff)
 
-title = f"{dataset} — Top {top_n}"
+# If the user picked Weight (kg) and the dataset is species-based with count units,
+# swap the Value column to total weight; same trick in reverse for Catches.
+SPECIES_DATASETS = ("Catches per Species", "Total Weight per Species",
+                    "Heaviest per Species", "All Species (Detailed)")
+
+
+def _recompute_species_value(scored_df, weight: bool) -> pd.DataFrame:
+    """Recompute species ranking with chosen units."""
+    df = scored_df.copy()
+    df["weight_kg"] = pd.to_numeric(df["weight_kg"], errors="coerce").fillna(0.0)
+    df["valid"]    = df["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+    df = df[df["valid"]].copy()
+    if weight:
+        df = df[df["weight_kg"] > 0]
+        agg = (df.groupby("canonical_species")["weight_kg"].sum()
+               .reset_index().rename(columns={"weight_kg": "Value"}))
+    else:
+        agg = (df.groupby("canonical_species").size()
+               .reset_index(name="Value"))
+    agg = agg.rename(columns={"canonical_species": "Category"}).sort_values("Value", ascending=False)
+    return agg.reset_index(drop=True)
+
+
+if dataset in SPECIES_DATASETS:
+    ranking = _recompute_species_value(catches_f, weight=use_weight)
+    if top_n is not None:
+        ranking = ranking.head(top_n)
+    ranking.insert(0, "Rank", range(1, len(ranking) + 1))
+
+unit_label = "Weight (kg)" if use_weight else "Catches"
+title = f"{dataset} — {unit_label} — {('All' if top_n is None else f'Top {top_n}')}"
+if as_percent:
+    title += " (% of total)"
+
+
+def _to_percent(df, value_col="Value"):
+    if df.empty or value_col not in df.columns:
+        return df
+    df = df.copy()
+    total = df[value_col].sum()
+    if total > 0:
+        df[value_col] = (df[value_col] / total * 100).round(2)
+    return df
+
+
+def _to_percent_per_comp(df):
+    if df.empty or "Comp" not in df.columns:
+        return df
+    df = df.copy()
+    totals = df.groupby("Comp", observed=False)["Value"].transform("sum")
+    df["Value"] = (df["Value"] / totals.replace(0, 1) * 100).round(2)
+    return df
+
+
+display_ranking = _to_percent(ranking) if as_percent else ranking
+display_value_label = ("% of total" if as_percent
+                       else (unit_label if dataset in SPECIES_DATASETS
+                             else meta["value_label"]))
 if use_best_n and dataset in ("Overall Points per Angler", "Club Standings"):
     title += f" (best {BEST_N_DEFAULT} of {len(comp_order)})"
 
-# ── Four chart-type tabs + table ─────────────────────────────────────────
-tab_bar, tab_pie, tab_line, tab_table = st.tabs(
-    ["📊  Bar chart", "🥧  Pie chart", "📈  Line chart", "📋  Table view"])
+# ── Five chart-type tabs + table ─────────────────────────────────────────
+tab_bar, tab_pie, tab_line, tab_per_ic, tab_table = st.tabs(
+    ["📊  Bar chart", "🥧  Pie chart", "📈  Line chart",
+     "🏆  Per IC", "📋  Table view"])
 
 
 def _no_data() -> None:
@@ -79,9 +202,9 @@ with tab_bar:
     if ranking.empty:
         _no_data()
     else:
-        chart_data = ranking[["Category", "Value"]].copy()
+        chart_data = display_ranking[["Category", "Value"]].copy()
         fig = render_chart(chart_data, "bar", title=title,
-                           value_label=meta["value_label"],
+                           value_label=display_value_label,
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
@@ -95,9 +218,9 @@ with tab_pie:
             st.info(
                 "Pie charts work best with grouped categories (clubs, divisions). "
                 "For individual catches, the **Bar chart** tab is clearer.")
-        chart_data = ranking[["Category", "Value"]].copy()
+        chart_data = display_ranking[["Category", "Value"]].copy()
         fig = render_chart(chart_data, "pie", title=title,
-                           value_label=meta["value_label"],
+                           value_label=display_value_label,
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
@@ -111,31 +234,197 @@ with tab_line:
             st.info(
                 "Line charts show progression across competitions. "
                 "This dataset contains single catches — use **Bar** or **Pie** instead.")
-        chart_data = get_trend_data(dataset, catches_f, anglers_f,
-                                     top_n=top_n, comp_order=comp_order)
+        if dataset in SPECIES_DATASETS and use_weight:
+            # Recompute long with weight sums
+            cc_tmp = catches_f.copy()
+            cc_tmp["weight_kg"] = pd.to_numeric(cc_tmp["weight_kg"], errors="coerce").fillna(0.0)
+            cc_tmp["valid"] = cc_tmp["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+            sub = cc_tmp[cc_tmp["valid"] & (cc_tmp["weight_kg"] > 0)]
+            chart_data = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].sum()
+                          .reset_index()
+                          .rename(columns={"canonical_species": "Category",
+                                           "comp_id": "Comp", "weight_kg": "Value"}))
+            keep = display_ranking["Category"].tolist()
+            chart_data = chart_data[chart_data["Category"].isin(keep)]
+            import pandas as _pd
+            chart_data["Comp"] = _pd.Categorical(chart_data["Comp"].astype(str),
+                                                  categories=comp_order, ordered=True)
+            chart_data = chart_data.sort_values(["Category", "Comp"])
+        else:
+            chart_data = get_trend_data(dataset, catches_f, anglers_f,
+                                         top_n=top_n, comp_order=comp_order)
+        if len(comp_order) < 2:
+            st.info(
+                f"📊 Line chart needs ≥ 2 competitions to draw a trend. "
+                f"Currently {len(comp_order)} selected — select more ICs above for a meaningful line.")
+        if as_percent:
+            chart_data = _to_percent_per_comp(chart_data)
+        # Relabel Comp -> "IC N (YYYY-MM-DD · Venue)" so the line x-axis carries dates+venues
+        if not chart_data.empty:
+            chart_data = chart_data.copy()
+            chart_data["Comp"] = chart_data["Comp"].astype(str).map(_ic_label)
+            ordered_labels = [_ic_label(c) for c in comp_order]
+            import pandas as _pd
+            chart_data["Comp"] = _pd.Categorical(chart_data["Comp"],
+                                                 categories=ordered_labels, ordered=True)
+            chart_data = chart_data.sort_values(["Category", "Comp"])
         fig = render_chart(chart_data, "line", title=title,
-                           value_label=meta["value_label"],
+                           value_label=display_value_label,
                            category_label=meta["category_label"])
         st.plotly_chart(fig, use_container_width=True)
         _caption(chart_data)
+
+# ── Per IC breakdown ─────────────────────────────────────────────────────
+with tab_per_ic:
+    if dataset in SPECIES_DATASETS and use_weight:
+        cc_tmp = catches_f.copy()
+        cc_tmp["weight_kg"] = pd.to_numeric(cc_tmp["weight_kg"], errors="coerce").fillna(0.0)
+        cc_tmp["valid"] = cc_tmp["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+        sub = cc_tmp[cc_tmp["valid"] & (cc_tmp["weight_kg"] > 0)]
+        chart_data = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].sum()
+                      .reset_index()
+                      .rename(columns={"canonical_species": "Category",
+                                       "comp_id": "Comp", "weight_kg": "Value"}))
+    else:
+        chart_data = get_trend_data(dataset, catches_f, anglers_f,
+                                     top_n=top_n, comp_order=comp_order)
+    if chart_data.empty:
+        _no_data()
+    else:
+        import pandas as _pd
+        wide = (chart_data.pivot_table(index="Category", columns="Comp",
+                                         values="Value", aggfunc="sum",
+                                         observed=False)
+                .fillna(0))
+        wide = wide.reindex(columns=comp_order, fill_value=0)
+        # Compute Total from absolutes (before % conversion)
+        wide["Total"] = wide[comp_order].sum(axis=1)
+        if as_percent:
+            # Each cell becomes % within its IC column
+            for c in comp_order:
+                total_c = wide[c].sum()
+                if total_c > 0:
+                    wide[c] = (wide[c] / total_c * 100).round(2)
+            # Total column becomes % of grand total
+            grand = wide["Total"].sum()
+            wide["Total"] = (wide["Total"] / grand * 100).round(2) if grand > 0 else 0
+        # Label columns with date + venue, sort by Total desc
+        wide = wide.sort_values("Total", ascending=False)
+        if top_n is not None:
+            wide = wide.head(top_n)
+        wide.columns = [_ic_label(str(c)) if c != "Total" else "Total" for c in wide.columns]
+        # Format
+        is_weight = (dataset in SPECIES_DATASETS and use_weight) or \
+                    meta["value_label"].lower().startswith("weight")
+        if as_percent:
+            fmt = "{:,.2f}%"
+        else:
+            fmt = "{:,.2f}" if is_weight else "{:,.0f}"
+        st.dataframe(wide.style.format(fmt), use_container_width=True)
+        st.download_button(
+            "⬇ Download per-IC CSV",
+            wide.to_csv().encode(),
+            file_name=f"{dataset.replace(' ', '_').lower()}_per_ic.csv",
+            mime="text/csv", key="an_per_ic_dl")
 
 # ── Table view ────────────────────────────────────────────────────────────
 with tab_table:
     if ranking.empty:
         _no_data()
     else:
-        section_label(f"{dataset} — top {top_n}")
-        st.dataframe(highlight_leader(ranking),
+        section_label(f"{dataset} — {('all' if top_n is None else f'top {top_n}')}")
+        st.dataframe(highlight_leader(display_ranking),
                      use_container_width=True, hide_index=True)
-        if not ranking.empty:
-            top_row = ranking.iloc[0]
+        if not display_ranking.empty:
+            top_row = display_ranking.iloc[0]
             leader_banner(
                 "🥇",
                 str(top_row["Category"]),
-                pts=f"{top_row['Value']:,.2f} {meta['value_label']}")
+                pts=f"{top_row['Value']:,.2f} {display_value_label}")
         st.download_button(
             "⬇ Download CSV",
-            ranking.to_csv(index=False).encode(),
-            file_name=f"{dataset.replace(' ', '_').lower()}_top{top_n}.csv",
+            display_ranking.to_csv(index=False).encode(),
+            file_name=f"{dataset.replace(' ', '_').lower()}_{('all' if top_n is None else f'top{top_n}')}.csv",
             mime="text/csv",
         )
+
+# ── Species composition per IC ────────────────────────────────────────────
+divider_label("Species composition per competition")
+import pandas as _pd
+import plotly.express as _px
+
+cc = catches_f.copy()
+cc["weight_kg"] = _pd.to_numeric(cc["weight_kg"], errors="coerce").fillna(0.0)
+cc["valid"]    = cc["status"].fillna("").astype(str).str.lower().str.startswith("ok")
+cc = cc[cc["valid"]].copy()
+cc["comp_label"] = cc["comp_id"].astype(str).map(_ic_label)
+
+with st.container(border=True):
+    section_label("Choose metric")
+    metric = st.radio(
+        "Show composition by", ["Catch count", "Total weight (kg)"],
+        horizontal=True, key="an_spec_metric")
+
+    if cc.empty:
+        empty_state("No catches match the current filters.", "🐟")
+    else:
+        # Aggregate species × IC
+        if metric == "Catch count":
+            agg = (cc.groupby(["comp_label", "canonical_species"]).size()
+                   .reset_index(name="Value"))
+            vfmt = "{:,.0f}"
+        else:
+            agg = (cc.groupby(["comp_label", "canonical_species"])["weight_kg"].sum()
+                   .reset_index().rename(columns={"weight_kg": "Value"}))
+            vfmt = "{:,.2f}"
+
+        # Per-comp total, then % share per species
+        comp_totals = agg.groupby("comp_label")["Value"].transform("sum")
+        agg["% of IC"] = (agg["Value"] / comp_totals * 100).round(1)
+
+        # Preserve IC order chronologically
+        ordered_labels = [_ic_label(c) for c in comp_order]
+        agg["comp_label"] = _pd.Categorical(agg["comp_label"],
+                                            categories=ordered_labels, ordered=True)
+        agg = agg.sort_values(["comp_label", "Value"], ascending=[True, False])
+
+        # ── Stacked bar chart ─────────────────────────────────────────────
+        fig = _px.bar(
+            agg, x="comp_label", y="Value", color="canonical_species",
+            title=f"Species composition per competition — {metric}",
+            labels={"comp_label": "Competition", "Value": metric,
+                    "canonical_species": "Species"},
+            text="Value",
+        )
+        fig.update_layout(barmode="stack", xaxis_tickangle=-25, height=520)
+        fig.update_traces(texttemplate=("%{y:.0f}" if metric == "Catch count" else "%{y:.1f}"),
+                          textposition="inside", insidetextanchor="middle")
+        st.plotly_chart(fig, use_container_width=True)
+
+        # ── Pivot: species rows × IC columns, with % share per IC ────────
+        section_label("Counts and percentages by IC")
+        pivot_val = agg.pivot_table(index="canonical_species", columns="comp_label",
+                                     values="Value", aggfunc="sum", observed=False).fillna(0)
+        pivot_pct = agg.pivot_table(index="canonical_species", columns="comp_label",
+                                     values="% of IC", aggfunc="sum", observed=False).fillna(0)
+        # Combine into one frame with two-row column headers (Value, % of IC)
+        pivot_combo = _pd.concat({"Value": pivot_val, "% of IC": pivot_pct}, axis=1)
+        # Reorder so each IC has Value+% adjacent
+        new_cols = []
+        for ic in ordered_labels:
+            if ("Value", ic) in pivot_combo.columns:
+                new_cols += [("Value", ic), ("% of IC", ic)]
+        pivot_combo = pivot_combo[new_cols]
+        # Add a Total column
+        pivot_combo[("Total", metric)] = pivot_val.sum(axis=1)
+        pivot_combo = pivot_combo.sort_values(("Total", metric), ascending=False)
+        # Format
+        fmt_map = {col: (vfmt if col[0] in ("Value", "Total") else "{:,.1f}%")
+                   for col in pivot_combo.columns}
+        st.dataframe(pivot_combo.style.format(fmt_map), use_container_width=True)
+
+        st.download_button(
+            "⬇ Download species-composition CSV",
+            pivot_combo.to_csv().encode(),
+            file_name=f"species_composition_per_ic_{active}.csv",
+            mime="text/csv", key="an_spec_dl")

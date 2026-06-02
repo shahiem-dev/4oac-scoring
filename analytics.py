@@ -51,6 +51,14 @@ DATASETS: dict[str, dict] = {
                                   "category_label": "Angler"},
     "Club Standings":           {"kind": "ranking", "value_label": "Points",
                                   "category_label": "Club"},
+    "Catches per Species":      {"kind": "ranking", "value_label": "Catches",
+                                  "category_label": "Species"},
+    "Total Weight per Species": {"kind": "ranking", "value_label": "Weight (kg)",
+                                  "category_label": "Species"},
+    "Heaviest per Species":     {"kind": "ranking", "value_label": "Weight (kg)",
+                                  "category_label": "Species"},
+    "All Species (Detailed)":   {"kind": "ranking", "value_label": "Catches",
+                                  "category_label": "Species"},
 }
 
 
@@ -135,6 +143,41 @@ def get_leaderboard_data(dataset: str, scored: pd.DataFrame,
         out = (total.to_frame("Value").reset_index()
                .rename(columns={"club": "Category"})
                .sort_values("Value", ascending=False))
+
+    elif dataset == "Catches per Species":
+        sub = cc[cc["valid"]]
+        agg = (sub.groupby("canonical_species").size().reset_index(name="Value")
+               .sort_values("Value", ascending=False))
+        out = agg.rename(columns={"canonical_species": "Category"})
+
+    elif dataset == "Total Weight per Species":
+        sub = cc[cc["valid"] & (cc["weight_kg"] > 0)]
+        agg = (sub.groupby("canonical_species")["weight_kg"].sum().reset_index()
+               .rename(columns={"weight_kg": "Value"})
+               .sort_values("Value", ascending=False))
+        out = agg.rename(columns={"canonical_species": "Category"})
+
+    elif dataset == "Heaviest per Species":
+        sub = cc[cc["valid"] & (cc["weight_kg"] > 0)]
+        agg = (sub.groupby("canonical_species")["weight_kg"].max().reset_index()
+               .rename(columns={"weight_kg": "Value"})
+               .sort_values("Value", ascending=False))
+        out = agg.rename(columns={"canonical_species": "Category"})
+
+    elif dataset == "All Species (Detailed)":
+        sub = cc[cc["valid"]]
+        agg = (sub.groupby("canonical_species")
+               .agg(Catches=("weight_kg", "size"),
+                    **{"Total weight (kg)": ("weight_kg", "sum"),
+                       "Heaviest (kg)":     ("weight_kg", "max"),
+                       "Avg weight (kg)":   ("weight_kg", "mean")})
+               .reset_index().round(3)
+               .rename(columns={"canonical_species": "Category"})
+               .sort_values("Catches", ascending=False))
+        agg["Value"] = agg["Catches"]
+        out = agg[["Category", "Value", "Catches", "Total weight (kg)",
+                   "Heaviest (kg)", "Avg weight (kg)"]]
+
     else:
         raise ValueError(f"Unhandled dataset: {dataset!r}")
 
@@ -202,6 +245,32 @@ def get_trend_data(dataset: str, scored: pd.DataFrame, anglers: pd.DataFrame, *,
         long["Comp"] = pd.Categorical(long["Comp"], categories=comp_order, ordered=True)
         return long.sort_values(["Category", "Comp"])
 
+    if dataset in ("Catches per Species", "Total Weight per Species",
+                   "Heaviest per Species", "All Species (Detailed)"):
+        sub = cc[cc["valid"]]
+        if dataset in ("Total Weight per Species", "Heaviest per Species"):
+            sub = sub[sub["weight_kg"] > 0]
+        ranking = get_leaderboard_data(dataset, scored, anglers,
+                                        top_n=top_n, comp_order=comp_order)
+        keep = ranking["Category"].tolist()
+        if dataset in ("Catches per Species", "All Species (Detailed)"):
+            long = (sub.groupby(["canonical_species", "comp_id"]).size()
+                    .reset_index(name="Value")
+                    .rename(columns={"canonical_species": "Category", "comp_id": "Comp"}))
+        elif dataset == "Total Weight per Species":
+            long = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].sum()
+                    .reset_index()
+                    .rename(columns={"canonical_species": "Category",
+                                     "comp_id": "Comp", "weight_kg": "Value"}))
+        else:  # Heaviest per Species
+            long = (sub.groupby(["canonical_species", "comp_id"])["weight_kg"].max()
+                    .reset_index()
+                    .rename(columns={"canonical_species": "Category",
+                                     "comp_id": "Comp", "weight_kg": "Value"}))
+        long = long[long["Category"].isin(keep)]
+        long["Comp"] = pd.Categorical(long["Comp"], categories=comp_order, ordered=True)
+        return long.sort_values(["Category", "Comp"])
+
     # Heaviest Edible / Non-Edible — single catches don't have a meaningful
     # trend; fall back to flat single-point series (caller should pick bar/pie).
     rk = get_leaderboard_data(dataset, scored, anglers,
@@ -234,8 +303,26 @@ def render_chart(data: pd.DataFrame, chart_type: str, *, title: str = "",
     if chart_type == "pie":
         fig = px.pie(data, names="Category", values="Value", hole=0.35,
                      title=title, color_discrete_sequence=palette)
-        fig.update_traces(textposition="inside", textinfo="percent+label",
-                          hovertemplate="%{label}: %{value:.2f}<extra></extra>")
+        is_percent = value_label.strip().startswith("%")
+        unit_suffix = ""
+        if not is_percent:
+            if "kg" in value_label.lower():
+                unit_suffix = " kg"
+        if is_percent:
+            # Show "Species  47.6%"
+            fig.update_traces(
+                textposition="inside",
+                textinfo="none",
+                texttemplate="%{label}<br>%{value:.2f}%",
+                hovertemplate="%{label}: %{value:.2f}%<extra></extra>")
+        else:
+            # Show "Species  1971.05 kg"  (NO percent in slice)
+            value_fmt = "%{value:.2f}" + unit_suffix
+            fig.update_traces(
+                textposition="inside",
+                textinfo="none",
+                texttemplate="%{label}<br>" + value_fmt,
+                hovertemplate=f"%{{label}}: {value_fmt} (%{{percent}} of total)<extra></extra>")
     elif chart_type == "line":
         if "Comp" not in data.columns:
             fig = px.line(data, x="Category", y="Value", markers=True,

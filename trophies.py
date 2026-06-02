@@ -27,6 +27,34 @@ from standings import (BEST_N_DEFAULT, apply_best_n, consistency_ranking,
 
 # ---- Helpers -------------------------------------------------------------
 
+def _apply_club_overrides(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply per-comp club overrides from data/club_overrides.json.
+
+    The file is optional; if missing or malformed, returns df unchanged.
+    Used for anglers who changed clubs mid-season — their anglers.club holds
+    the current club, but historical comps need the club they fished for then.
+    """
+    import json
+    from pathlib import Path
+    ovr_path = Path(__file__).parent / "data" / "club_overrides.json"
+    if not ovr_path.exists() or df.empty:
+        return df
+    try:
+        with ovr_path.open(encoding="utf-8") as f:
+            data = json.load(f)
+        overrides = data.get("overrides", []) if isinstance(data, dict) else []
+    except Exception:
+        return df
+    if not overrides:
+        return df
+    df = df.copy()
+    df["comp_id"] = df["comp_id"].astype(str)
+    for o in overrides:
+        mask = (df["comp_id"] == str(o["comp_id"])) & (df["wp_no"] == o["wp_no"])
+        df.loc[mask, "club"] = o["club"]
+    return df
+
+
 def _enrich(scored: pd.DataFrame, anglers: pd.DataFrame) -> pd.DataFrame:
     """Join catches with angler metadata. Returns enriched copy."""
     if scored.empty:
@@ -36,6 +64,7 @@ def _enrich(scored: pd.DataFrame, anglers: pd.DataFrame) -> pd.DataFrame:
         on="wp_no", how="left",
     )
     cc["club"] = cc["club"].fillna("UNKNOWN").replace("", "UNKNOWN")
+    cc = _apply_club_overrides(cc)
     cc["league_code"] = cc["league_code"].fillna("").astype(str).str.upper().str.strip()
     cc["Angler"] = (cc["first_name"].fillna("") + " " + cc["surname"].fillna("")).str.strip()
     cc.loc[cc["Angler"] == "", "Angler"] = "(unknown)"

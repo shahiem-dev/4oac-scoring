@@ -1,5 +1,8 @@
-streamlit
-pandas
+streamlit>=1.31.0
+pandas>=2.0.0
 numpy
 openpyxl
 plotly
+supabase>=2.3.0
+httpx>=0.24.0
+Pillow>=10.0.0

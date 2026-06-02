@@ -105,21 +105,44 @@ def chart_palette(theme: dict[str, str]) -> list[str]:
 # ---- Persistence ---------------------------------------------------------
 
 def load_theme() -> dict[str, str]:
-    if not THEME_PATH.exists():
-        return dict(DEFAULT_THEME)
+    """Load theme from Supabase, falling back to local file, then defaults."""
+    # Try Supabase first
     try:
-        data = json.loads(THEME_PATH.read_text(encoding="utf-8"))
+        from database import load_theme_db
+        data = load_theme_db()
+        if data:
+            out = dict(DEFAULT_THEME)
+            out.update({k: v for k, v in data.items() if k in DEFAULT_THEME and v})
+            return out
     except Exception:
-        return dict(DEFAULT_THEME)
-    out = dict(DEFAULT_THEME)
-    out.update({k: v for k, v in data.items() if k in DEFAULT_THEME and v})
-    return out
+        pass
+    # Fall back to local file (present during local dev or first run)
+    if THEME_PATH.exists():
+        try:
+            data = json.loads(THEME_PATH.read_text(encoding="utf-8"))
+            out  = dict(DEFAULT_THEME)
+            out.update({k: v for k, v in data.items() if k in DEFAULT_THEME and v})
+            return out
+        except Exception:
+            pass
+    return dict(DEFAULT_THEME)
 
 
 def save_theme(theme: dict[str, str]) -> None:
-    THEME_PATH.parent.mkdir(parents=True, exist_ok=True)
+    """Persist theme to Supabase (primary) and local file (backup for local dev)."""
     clean = {k: v for k, v in theme.items() if k in DEFAULT_THEME}
-    THEME_PATH.write_text(json.dumps(clean, indent=2), encoding="utf-8")
+    # Supabase (primary)
+    try:
+        from database import save_theme_db
+        save_theme_db(clean)
+    except Exception:
+        pass
+    # Local file (backup — not persisted on Streamlit Cloud across restarts)
+    try:
+        THEME_PATH.parent.mkdir(parents=True, exist_ok=True)
+        THEME_PATH.write_text(json.dumps(clean, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def reset_theme() -> None:
