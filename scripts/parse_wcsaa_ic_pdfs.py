@@ -33,7 +33,7 @@ except ImportError:
 RAW_ROOT = Path(r"C:\second-brain\raw\pdfs\wcsaa-2025-26")
 OUT_DIR  = Path(r"C:\second-brain\raw\notes\wcsaa-ic-parsed")
 
-IC_RANGE = range(2, 9)
+IC_RANGE = range(1, 9)
 
 # ── Regex patterns ────────────────────────────────────────────────────────────
 
