@@ -63,9 +63,18 @@ BACKUP_DIR = Path(__file__).parent / "backups"
 
 
 def _dump_table(sb, table: str, out_dir: Path) -> int:
-    """Fetch all rows from a table and write to CSV."""
-    res = sb.table(table).select("*").execute()
-    rows = res.data or []
+    """Fetch ALL rows from a table (paginating past Supabase's 1000-row cap) and write to CSV."""
+    rows: list[dict] = []
+    page = 0
+    while True:
+        res = (sb.table(table).select("*")
+                 .range(page * 1000, (page + 1) * 1000 - 1)
+                 .execute())
+        batch = res.data or []
+        rows.extend(batch)
+        if len(batch) < 1000:
+            break
+        page += 1
     if not rows:
         pd.DataFrame().to_csv(out_dir / f"{table}.csv", index=False)
         return 0
