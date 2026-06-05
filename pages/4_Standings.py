@@ -67,8 +67,9 @@ mode_label = f"Best {BEST_N_DEFAULT}" if use_best_n else "All comps"
 st.caption(f"Mode: **{mode_label}** · {len(comp_order)} competition(s)")
 
 # ── Tabs ─────────────────────────────────────────────────────────────────
-tab_club, tab_ind, tab_league, tab_drill = st.tabs(
-    ["🏛  By Club", "👤  Individuals", "🎖  By Division", "🔍  Club Drilldown"])
+tab_club, tab_ind, tab_league, tab_drill, tab_gp = st.tabs(
+    ["🏛  By Club", "👤  Individuals", "🎖  By Division", "🔍  Club Drilldown",
+     "⚡  Grand Prix (Trial)"])
 
 # ---- By Club ------------------------------------------------------------
 with tab_club:
@@ -211,3 +212,77 @@ with tab_drill:
                                 "points": "Pts", "status": "Status"}))
     st.dataframe(detail.sort_values(["Comp", "WP No"]),
                  use_container_width=True, hide_index=True)
+
+# ---- Grand Prix (Trial) -------------------------------------------------
+with tab_gp:
+    import grandprix as gpmod
+
+    st.info(
+        "**Trial view — not the official league result.** Grand Prix converts each "
+        "angler's weight points per IC into a score out of 50 "
+        "(your score ÷ the top score that IC × 50). It caps the impact of one huge "
+        "catch and rewards scoring in every IC. Weight points remain the official league.",
+        icon="⚡")
+
+    g1, g2, g3, g4 = st.columns([1.2, 1.2, 1.4, 1])
+    with g1:
+        gp_drop = st.toggle("Best 7 of 8 (drop worst)", value=False, key="gp_drop",
+                            help="On = drop each angler's worst IC. Off = all 8 count.")
+    with g2:
+        gp_pool = st.radio("Benchmark pool", ["Overall", "Per division"],
+                           horizontal=True, key="gp_pool",
+                           help="Overall = one 50-pt top across the field. "
+                                "Per division = each division has its own 50-pt top.")
+    with g3:
+        gp_fish = st.toggle("Add work-rate points (+1 / fish)", value=False, key="gp_fish",
+                            help="Adds +1 per qualifying fish (excl. sight fish), "
+                                 "on top of GP points.")
+    with g4:
+        gp_view = st.radio("View", ["Table", "Weight vs GP"], key="gp_view")
+
+    pool = "division" if gp_pool == "Per division" else "overall"
+    gp_tbl = gpmod.gp_standings(
+        cc, anglers, comp_order, drop_worst=gp_drop, best_n=BEST_N_DEFAULT,
+        pool=pool, add_fish=gp_fish)
+
+    if gp_tbl.empty:
+        st.info("No data for the current filters.")
+    elif gp_view == "Table":
+        headline = "GP+Fish" if gp_fish else "GP"
+        show_cols = ["Rank", "Angler", "Club", "Div", "GP"]
+        if gp_fish:
+            show_cols += ["Fish", "GP+Fish"]
+        show_cols += ["Weight", "ICs_scored", "ICs_blobbed"]
+        ic_cols = [c for c in gp_tbl.columns if c.startswith("IC")]
+        st.dataframe(
+            gp_tbl[show_cols + ic_cols].style.format(
+                {**{"GP": "{:.2f}", "GP+Fish": "{:.2f}", "Weight": "{:.2f}"},
+                 **{c: "{:.1f}" for c in ic_cols}}),
+            use_container_width=True, hide_index=True, height=560)
+        if not gp_tbl.empty:
+            w = gp_tbl.iloc[0]
+            leader_banner("🥇", w["Angler"], detail=w["Club"],
+                          pts=f"{w[headline]:,.1f} GP")
+        st.download_button(
+            "⬇ CSV", gp_tbl.to_csv(index=False).encode(),
+            f"grand_prix_standings_{active}.csv", "text/csv", key="gp_dl")
+    else:  # Weight vs GP butterfly
+        import plotly.graph_objects as go
+        cmp = gpmod.weight_vs_gp(cc, anglers, comp_order, drop_worst=gp_drop,
+                                 best_n=BEST_N_DEFAULT, pool=pool, add_fish=gp_fish,
+                                 top=25)
+        section_label("Weight rank vs Grand Prix rank — top 25 by weight")
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name="Weight rank", x=cmp["Angler"], y=cmp["Weight_rank"],
+                             marker_color="#1f3a5f"))
+        fig.add_trace(go.Bar(name="GP rank", x=cmp["Angler"], y=cmp["GP_rank"],
+                             marker_color="#F59E0B"))
+        fig.update_layout(barmode="group", height=480, yaxis_title="Rank (1 = best)",
+                          yaxis=dict(autorange="reversed"), xaxis_tickangle=-40,
+                          margin=dict(l=10, r=10, t=30, b=10))
+        st.plotly_chart(fig, use_container_width=True)
+        movers = cmp[["Weight_rank", "GP_rank", "Move", "Angler", "Club",
+                      "Weight", "GP", "ICs_blobbed"]].copy()
+        st.caption("Move > 0 = climbs under Grand Prix (rewards consistency); "
+                   "Move < 0 = falls (single-big-fish or blobbed ICs).")
+        st.dataframe(movers, use_container_width=True, hide_index=True)
