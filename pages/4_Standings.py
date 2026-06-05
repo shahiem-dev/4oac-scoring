@@ -267,42 +267,33 @@ with tab_gp:
         st.download_button(
             "⬇ CSV", gp_tbl.to_csv(index=False).encode(),
             f"grand_prix_standings_{active}.csv", "text/csv", key="gp_dl")
-    else:  # Weight vs GP — dumbbell (rank movement)
+    else:  # Weight vs GP — grouped bars (matches the proposal chart)
         import plotly.graph_objects as go
         cmp = gpmod.weight_vs_gp(cc, anglers, comp_order, drop_worst=gp_drop,
                                  best_n=BEST_N_DEFAULT, pool=pool, add_fish=gp_fish,
                                  top=25)
-        section_label("Weight rank → Grand Prix rank — top 25 by weight")
-        st.caption("Each angler is a line from their **weight rank** (navy) to their "
-                   "**GP rank** (amber). Rank 1 = best, at the top. "
-                   "Green line = climbs under GP (consistency rewarded); "
-                   "red line = falls (single-big-fish or blobbed ICs).")
-        # order best→worst by weight, with #1 at the TOP of the chart
-        cmp = cmp.sort_values("Weight_rank", ascending=False).reset_index(drop=True)
+        section_label("Position: weight points vs Grand Prix — top 25 by weight")
+        st.caption("X-axis = weight-points position (1–25). "
+                   "**Blue** = position on weight points, **red** = position on GP points. "
+                   "A red bar TALLER than its blue = the angler **drops** under GP "
+                   "(big-fish / blobs); SHORTER = **climbs** (consistency).")
+        cmp = cmp.sort_values("Weight_rank").reset_index(drop=True)
+        xcat = cmp["Weight_rank"].astype(int).astype(str).tolist()
         fig = go.Figure()
-        for _, r in cmp.iterrows():
-            improved = r["GP_rank"] < r["Weight_rank"]
-            same = r["GP_rank"] == r["Weight_rank"]
-            line_col = "#9CA3AF" if same else ("#16A34A" if improved else "#DC2626")
-            fig.add_trace(go.Scatter(
-                x=[r["Weight_rank"], r["GP_rank"]], y=[r["Angler"], r["Angler"]],
-                mode="lines", line=dict(color=line_col, width=3),
-                showlegend=False, hoverinfo="skip"))
-        fig.add_trace(go.Scatter(
-            x=cmp["Weight_rank"], y=cmp["Angler"], mode="markers", name="Weight rank",
-            marker=dict(color="#1f3a5f", size=11),
-            hovertemplate="%{y}<br>Weight rank: %{x}<extra></extra>"))
-        fig.add_trace(go.Scatter(
-            x=cmp["GP_rank"], y=cmp["Angler"], mode="markers", name="GP rank",
-            marker=dict(color="#F59E0B", size=11),
-            hovertemplate="%{y}<br>GP rank: %{x}<extra></extra>"))
+        fig.add_trace(go.Bar(
+            name="Pos weight points", x=xcat, y=cmp["Weight_rank"],
+            marker_color="#2563EB", customdata=cmp["Angler"],
+            hovertemplate="%{customdata}<br>Weight pos: %{y}<extra></extra>"))
+        fig.add_trace(go.Bar(
+            name="Pos GP points", x=xcat, y=cmp["GP_rank"],
+            marker_color="#DC2626", customdata=cmp["Angler"],
+            hovertemplate="%{customdata}<br>GP pos: %{y}<extra></extra>"))
         fig.update_layout(
-            height=720, xaxis_title="Rank (1 = best, left)",
-            xaxis=dict(dtick=5),
+            barmode="group", height=480, bargap=0.25, bargroupgap=0.05,
+            xaxis_title="Weight-points position", yaxis_title="Position (lower = better)",
             margin=dict(l=10, r=10, t=20, b=10),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5))
         st.plotly_chart(fig, use_container_width=True)
-        movers = cmp.sort_values("Weight_rank")[
-            ["Weight_rank", "GP_rank", "Move", "Angler", "Club",
-             "Weight", "GP", "ICs_blobbed"]].copy()
+        movers = cmp[["Weight_rank", "GP_rank", "Move", "Angler", "Club",
+                      "Weight", "GP", "ICs_blobbed"]].copy()
         st.dataframe(movers, use_container_width=True, hide_index=True)
