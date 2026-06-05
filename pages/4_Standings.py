@@ -253,7 +253,8 @@ with tab_gp:
         if gp_fish:
             show_cols += ["Fish", "GP+Fish"]
         show_cols += ["Weight", "ICs_scored", "ICs_blobbed"]
-        ic_cols = [c for c in gp_tbl.columns if c.startswith("IC")]
+        ic_cols = [c for c in gp_tbl.columns
+                   if c.startswith("IC") and c[2:].isdigit()]
         st.dataframe(
             gp_tbl[show_cols + ic_cols].style.format(
                 {**{"GP": "{:.2f}", "GP+Fish": "{:.2f}", "Weight": "{:.2f}"},
