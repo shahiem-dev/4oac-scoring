@@ -149,6 +149,76 @@ def gp_standings(scored: pd.DataFrame, anglers: pd.DataFrame, comp_order: list[s
     return out[lead + ic_cols]
 
 
+def angler_breakdown(scored: pd.DataFrame, anglers: pd.DataFrame, comp_order: list[str],
+                     wp_no: str, *, gp_max: float = GP_MAX_DEFAULT, pool: str = "overall",
+                     drop_worst: bool = False, best_n: int = 7,
+                     add_fish: bool = False) -> pd.DataFrame:
+    """Per-IC audit table for one angler: weight pts, IC benchmark, achievement %,
+    GP, fish, and whether the IC was dropped under best-N.
+    """
+    meta = (anglers.set_index("wp_no") if not anglers.empty else pd.DataFrame())
+    div = str(meta.loc[wp_no, "league_code"]) if wp_no in getattr(meta, "index", []) else ""
+
+    wmat = weight_matrix(scored, comp_order)
+    if wmat.empty or wp_no not in wmat.index:
+        return pd.DataFrame()
+
+    groups = None
+    if pool == "division":
+        groups = {wp: (str(meta.loc[wp, "league_code"]) if wp in meta.index else "")
+                  for wp in wmat.index}
+    gpmat = to_gp(wmat, gp_max=gp_max, groups=groups)
+    fishmat = fish_count_matrix(scored, comp_order).reindex(
+        index=wmat.index, columns=comp_order, fill_value=0)
+
+    # benchmark (IC max) used for this angler
+    if pool == "division":
+        peers = [w for w in wmat.index if (groups or {}).get(w, "") == div]
+        bench = wmat.loc[peers].max()
+    else:
+        bench = wmat.max()
+
+    # which ICs are dropped for this angler under best-N
+    dropped_cols: set[str] = set()
+    if drop_worst:
+        val = gpmat.add(fishmat, fill_value=0) if add_fish else gpmat
+        _, dmask, _ = apply_best_n(val, n=best_n)
+        if wp_no in dmask.index:
+            dropped_cols = {c for c in comp_order if bool(dmask.loc[wp_no, c])}
+
+    rows = []
+    for c in comp_order:
+        wpv = float(wmat.loc[wp_no, c])
+        bmv = float(bench[c]) if c in bench.index else 0.0
+        gpv = float(gpmat.loc[wp_no, c])
+        fsv = int(fishmat.loc[wp_no, c]) if c in fishmat.columns else 0
+        rows.append({
+            "IC": c,
+            "Weight pts": round(wpv, 2),
+            "IC top": round(bmv, 2),
+            "Achievement %": round((wpv / bmv * 100) if bmv > 0 else 0.0, 1),
+            "GP": round(gpv, 2),
+            "Fish": fsv,
+            "GP+Fish": round(gpv + fsv, 2) if add_fish else round(gpv, 2),
+            "Counts?": "dropped" if c in dropped_cols else ("blob" if wpv <= 0 else "✓"),
+        })
+    df = pd.DataFrame(rows)
+    # total row (respecting drop-worst)
+    counted = df[df["Counts?"] != "dropped"]
+    tot = {
+        "IC": "TOTAL", "Weight pts": round(df["Weight pts"].sum(), 2),
+        "IC top": "", "Achievement %": "",
+        "GP": round(counted["GP"].sum(), 2),
+        "Fish": int(counted["Fish"].sum()),
+        "GP+Fish": round((counted["GP"] + (counted["Fish"] if add_fish else 0)).sum(), 2),
+        "Counts?": f"best {best_n}" if drop_worst else "all",
+    }
+    if not add_fish:
+        df = df.drop(columns=["GP+Fish", "Fish"])
+        tot.pop("GP+Fish"); tot.pop("Fish")
+    return pd.concat([df, pd.DataFrame([tot])], ignore_index=True)
+
+
 def weight_vs_gp(scored: pd.DataFrame, anglers: pd.DataFrame, comp_order: list[str],
                  *, gp_max: float = GP_MAX_DEFAULT, drop_worst: bool = False,
                  best_n: int = 7, pool: str = "overall", add_fish: bool = False,

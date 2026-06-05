@@ -267,6 +267,26 @@ with tab_gp:
         st.download_button(
             "⬇ CSV", gp_tbl.to_csv(index=False).encode(),
             f"grand_prix_standings_{active}.csv", "text/csv", key="gp_dl")
+
+        # ── Per-angler audit ────────────────────────────────────────────
+        divider_label("Audit an angler's GP score")
+        label_map = {f"{r.Angler} ({r.wp_no}) — {r.Club}": r.wp_no
+                     for r in gp_tbl.itertuples()}
+        pick = st.selectbox("Angler", list(label_map.keys()), key="gp_audit_pick")
+        wp_sel = label_map[pick]
+        bd = gpmod.angler_breakdown(
+            cc, anglers, comp_order, wp_sel, drop_worst=gp_drop,
+            best_n=BEST_N_DEFAULT, pool=pool, add_fish=gp_fish)
+        if bd.empty:
+            st.info("No catches for this angler.")
+        else:
+            st.caption(f"How **{pick}**'s score is built: each IC = "
+                       f"(your weight pts ÷ IC top{' in division' if pool=='division' else ''}) × 50."
+                       + (" Best 7 of 8 — the dropped IC is marked." if gp_drop else ""))
+            def _safe(v):
+                return f"{v:.2f}" if isinstance(v, float) else v
+            st.dataframe(bd.style.format(_safe, na_rep=""),
+                         use_container_width=True, hide_index=True)
     else:  # Weight vs GP — grouped bars (matches the proposal chart)
         import plotly.graph_objects as go
         cmp = gpmod.weight_vs_gp(cc, anglers, comp_order, drop_worst=gp_drop,
