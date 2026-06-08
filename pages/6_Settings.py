@@ -60,15 +60,17 @@ with tab_theme:
     st.caption("Pick a preset or fine-tune individual colours. Changes apply "
                "to every page (including charts) on save.")
 
-    theme = load_theme()
     ss = st.session_state
-    ss.setdefault("_theme_draft", dict(theme))
 
     def _clear_picker_state():
         """Drop cached color_picker widget state so they re-init from `value=`."""
         for k in list(ss.keys()):
             if k.startswith("cp_"):
                 del ss[k]
+
+    # Always read the freshest theme from storage at the top of the render.
+    # Pickers default to these values; once edited, the cp_* session keys win.
+    theme = load_theme()
 
     col_p, col_a = st.columns([2, 1])
     with col_p:
@@ -77,15 +79,16 @@ with tab_theme:
     with col_a:
         if st.button("Apply preset", use_container_width=True):
             chosen = dict(PRESETS[preset])
-            ss._theme_draft = chosen
-            save_theme(chosen)          # persist immediately so every page picks it up
+            db_ok, err = save_theme(chosen)
+            if not db_ok:
+                st.error(f"Supabase save failed — preset NOT persisted across pages: {err}")
+                st.stop()
             _clear_picker_state()
             st.success(f"Applied preset: {preset}.")
             st.rerun()
 
     st.divider()
     st.markdown("##### Fine-tune colours")
-    draft = ss._theme_draft
 
     GROUPS = {
         "Layout": ["main_bg", "body_text"],
@@ -96,6 +99,9 @@ with tab_theme:
         "Notifications": ["info_bg", "success_bg", "warning_bg", "error_bg"],
         "Tables & charts": ["leader_highlight", "chart_primary", "chart_accent"],
     }
+    # Build the in-memory draft from current picker state (post-edits) OR the
+    # freshly loaded saved theme if a picker hasn't been touched this run.
+    draft: dict[str, str] = {}
     for group, keys in GROUPS.items():
         with st.expander(group, expanded=(group == "Sidebar")):
             cols = st.columns(min(len(keys), 4))
@@ -103,9 +109,12 @@ with tab_theme:
                 with cols[i % len(cols)]:
                     draft[k] = st.color_picker(
                         k.replace("_", " ").title(),
-                        value=draft.get(k, DEFAULT_THEME[k]),
+                        value=theme.get(k, DEFAULT_THEME[k]),
                         key=f"cp_{k}",
                     )
+    # Carry over keys not exposed as pickers (none today, but defensive).
+    for k, v in theme.items():
+        draft.setdefault(k, v)
 
     st.divider()
     st.markdown("##### Live preview")
@@ -142,15 +151,20 @@ with tab_theme:
 
     s1, s2, _ = st.columns([1, 1, 4])
     if s1.button("💾 Save theme", type="primary", use_container_width=True):
-        save_theme(draft)
-        st.success("Theme saved. Reloading…")
-        st.rerun()
+        db_ok, err = save_theme(draft)
+        if not db_ok:
+            st.error(f"Supabase save failed: {err}")
+        else:
+            st.success("Theme saved. Reloading…")
+            st.rerun()
     if s2.button("↺ Reset to default", use_container_width=True):
-        reset_theme()
-        ss._theme_draft = dict(DEFAULT_THEME)
-        _clear_picker_state()
-        st.success("Theme reset to default.")
-        st.rerun()
+        db_ok, err = reset_theme()
+        if not db_ok:
+            st.error(f"Supabase reset failed: {err}")
+        else:
+            _clear_picker_state()
+            st.success("Theme reset to default.")
+            st.rerun()
 
 # ---- Danger zone --------------------------------------------------------
 with tab_danger:

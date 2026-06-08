@@ -128,37 +128,51 @@ def load_theme() -> dict[str, str]:
     return dict(DEFAULT_THEME)
 
 
-def save_theme(theme: dict[str, str]) -> None:
-    """Persist theme to Supabase (primary) and local file (backup for local dev)."""
+def save_theme(theme: dict[str, str]) -> tuple[bool, str | None]:
+    """Persist theme to Supabase (primary) and local file (backup for local dev).
+
+    Returns (db_ok, error_msg). ``db_ok`` is False when the Supabase write
+    failed for any reason (table missing, RLS, network). The local file write
+    is best-effort and never raises.
+    """
     clean = {k: v for k, v in theme.items() if k in DEFAULT_THEME}
+    db_ok = False
+    err: str | None = None
     # Supabase (primary)
     try:
         from database import save_theme_db
         save_theme_db(clean)
-    except Exception:
-        pass
+        db_ok = True
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
     # Local file (backup — not persisted on Streamlit Cloud across restarts)
     try:
         THEME_PATH.parent.mkdir(parents=True, exist_ok=True)
         THEME_PATH.write_text(json.dumps(clean, indent=2), encoding="utf-8")
     except Exception:
         pass
+    return db_ok, err
 
 
-def reset_theme() -> None:
-    """Restore DEFAULT_THEME everywhere: Supabase row + local backup file."""
-    # Overwrite Supabase singleton with defaults so load_theme() returns defaults.
+def reset_theme() -> tuple[bool, str | None]:
+    """Restore DEFAULT_THEME everywhere: Supabase row + local backup file.
+
+    Returns (db_ok, error_msg) — same contract as ``save_theme``.
+    """
+    db_ok = False
+    err: str | None = None
     try:
         from database import save_theme_db
         save_theme_db(dict(DEFAULT_THEME))
-    except Exception:
-        pass
-    # Drop the local backup file too.
+        db_ok = True
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
     if THEME_PATH.exists():
         try:
             THEME_PATH.unlink()
         except Exception:
             pass
+    return db_ok, err
 
 
 # ---- CSS injection -------------------------------------------------------
