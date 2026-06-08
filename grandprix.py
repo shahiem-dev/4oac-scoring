@@ -149,6 +149,59 @@ def gp_standings(scored: pd.DataFrame, anglers: pd.DataFrame, comp_order: list[s
     return out[lead + ic_cols]
 
 
+def per_ic_table(scored: pd.DataFrame, anglers: pd.DataFrame, comp_id: str,
+                 *, gp_max: float = GP_MAX_DEFAULT, pool: str = "overall",
+                 add_fish: bool = False) -> pd.DataFrame:
+    """GP allocation for a SINGLE competition: every scoring angler's
+    weight pts, IC top (benchmark), achievement %, GP, fish, ranked by GP.
+    """
+    one = scored[scored["comp_id"].astype(str) == str(comp_id)].copy()
+    if one.empty:
+        return pd.DataFrame()
+    cols_meta = ["wp_no", "first_name", "surname", "club", "league_code"]
+    meta = (anglers[cols_meta].drop_duplicates("wp_no").set_index("wp_no")
+            if not anglers.empty else pd.DataFrame(columns=cols_meta).set_index("wp_no"))
+
+    wmat = per_entity_per_comp(one, "wp_no", [str(comp_id)])
+    if wmat.empty:
+        return pd.DataFrame()
+    groups = None
+    if pool == "division":
+        groups = {wp: (str(meta.loc[wp, "league_code"]) if wp in meta.index else "")
+                  for wp in wmat.index}
+    gpmat = to_gp(wmat, gp_max=gp_max, groups=groups)
+    fishmat = fish_count_matrix(one, [str(comp_id)]).reindex(
+        index=wmat.index, columns=[str(comp_id)], fill_value=0)
+
+    col = str(comp_id)
+    if pool == "division":
+        bench = pd.Series({wp: wmat.loc[[w for w in wmat.index
+                          if (groups or {}).get(w, "") == (groups or {}).get(wp, "")], col].max()
+                          for wp in wmat.index})
+    else:
+        bench = pd.Series(wmat[col].max(), index=wmat.index)
+
+    out = pd.DataFrame(index=wmat.index)
+    out["Weight"] = wmat[col].round(2)
+    out["IC top"] = bench.round(2)
+    out["Achievement %"] = (wmat[col] / bench.replace(0, pd.NA) * 100).round(1).fillna(0.0)
+    out["GP"] = gpmat[col].round(2)
+    if add_fish:
+        out["Fish"] = fishmat[col].astype(int)
+        out["GP+Fish"] = (gpmat[col] + fishmat[col]).round(2)
+    out = out.join(meta, how="left")
+    out["Angler"] = (out["first_name"].fillna("") + " " + out["surname"].fillna("")).str.strip()
+    out["Angler"] = out["Angler"].replace("", "(unknown)")
+    out = out.rename(columns={"club": "Club", "league_code": "Div"})
+    sort_key = "GP+Fish" if add_fish else "GP"
+    out = out[out["Weight"] > 0].sort_values(sort_key, ascending=False).reset_index()
+    out.insert(0, "Rank", range(1, len(out) + 1))
+    lead = ["Rank", "wp_no", "Angler", "Club", "Div", "Weight", "IC top", "Achievement %", "GP"]
+    if add_fish:
+        lead += ["Fish", "GP+Fish"]
+    return out[lead]
+
+
 def angler_breakdown(scored: pd.DataFrame, anglers: pd.DataFrame, comp_order: list[str],
                      wp_no: str, *, gp_max: float = GP_MAX_DEFAULT, pool: str = "overall",
                      drop_worst: bool = False, best_n: int = 7,

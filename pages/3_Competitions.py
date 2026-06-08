@@ -7,20 +7,21 @@ import streamlit as st
 from auth import require_login
 require_login()
 
-from app_lib import (CLUBS, SUB_TEAMS, comp_options, load_anglers, load_comps,
+from app_lib import (CLUBS, SUB_TEAMS, comp_options, load_anglers,
+                     load_catches_scored, load_comps,
                      load_team_assignments, load_trophy_nominees,
                      render_season_sidebar, save_comps,
                      save_team_assignments, save_trophy_nominees)
 from trophies import first_comp_in_month
-from ui import divider_label, kpi_row, page_header, section_label
+from ui import divider_label, empty_state, kpi_row, page_header, section_label
 
 st.set_page_config(page_title="Competitions · WCSAA League", page_icon="📅", layout="wide")
 active = render_season_sidebar()
 page_header("Competitions", "Schedule, team selection and trophy nominees",
             "📅", active)
 
-tab_sched, tab_teams, tab_nom = st.tabs(
-    ["📋  Schedule", "👥  Team Selection", "🏅  SDC Nominees"])
+tab_sched, tab_teams, tab_nom, tab_gpic = st.tabs(
+    ["📋  Schedule", "👥  Team Selection", "🏅  SDC Nominees", "⚡  Per-IC Grand Prix"])
 
 # ── Schedule ─────────────────────────────────────────────────────────────
 with tab_sched:
@@ -211,3 +212,42 @@ with tab_nom:
                           .rename(columns={"club": "Club", "wp_no": "WP No"}))
                 st.dataframe(pretty.sort_values(["Club", "Angler"]),
                              use_container_width=True, hide_index=True)
+
+# ── Per-IC Grand Prix allocation ─────────────────────────────────────────
+with tab_gpic:
+    import grandprix as gpmod
+    st.caption("**Trial view.** How weight points convert to Grand Prix points for "
+               "a single competition: GP = (your weight pts ÷ the top score this IC) × 50.")
+    comps = comp_options()
+    if not comps:
+        st.info("Add a competition first.")
+    else:
+        c1, c2, c3 = st.columns([2, 2, 2])
+        with c1:
+            ic_pick = st.selectbox("Competition", comps, index=len(comps) - 1,
+                                   key="gpic_comp")
+        with c2:
+            pool_pick = st.radio("Benchmark pool", ["Overall", "Per division"],
+                                 horizontal=True, key="gpic_pool")
+        with c3:
+            fish_pick = st.toggle("Add work-rate (+1/fish)", value=False, key="gpic_fish")
+        pool = "division" if pool_pick == "Per division" else "overall"
+        scored = load_catches_scored()
+        tbl = gpmod.per_ic_table(scored, load_anglers(), ic_pick,
+                                 pool=pool, add_fish=fish_pick)
+        if tbl.empty:
+            empty_state("No catches recorded for this competition.", "🎣")
+        else:
+            top = tbl.iloc[0]
+            kpi_row([
+                {"icon": "🏆", "label": f"{ic_pick} top (50 GP)", "value": top["Angler"]},
+                {"icon": "⚖", "label": "Top weight pts", "value": f"{top['IC top']:.1f}"},
+                {"icon": "🎣", "label": "Anglers scored", "value": len(tbl)},
+            ])
+            def _safe(v):
+                return f"{v:.2f}" if isinstance(v, float) else v
+            st.dataframe(tbl.style.format(_safe), use_container_width=True,
+                         hide_index=True, height=560)
+            st.download_button(
+                "⬇ CSV", tbl.to_csv(index=False).encode(),
+                f"grand_prix_{ic_pick}_{active}.csv", "text/csv", key="gpic_dl")

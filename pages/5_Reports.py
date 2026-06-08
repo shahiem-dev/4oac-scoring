@@ -232,6 +232,51 @@ else:
         file_name=f"species_composition_per_ic_{active}.csv",
         mime="text/csv", key="dl_species_comp")
 
+# ── Grand Prix standings export ────────────────────────────────────────────
+divider_label("Grand Prix standings (Trial)")
+import grandprix as gpmod
+gp_scored = load_catches_scored()
+if gp_scored.empty:
+    empty_state("No catches recorded yet.", "⚡")
+else:
+    gp_anglers = load_anglers()
+    gp_comp_order = sorted(gp_scored["comp_id"].astype(str).unique().tolist())
+    gc1, gc2, gc3 = st.columns(3)
+    with gc1:
+        r_drop = st.toggle("Best 7 of 8", value=False, key="rep_gp_drop")
+    with gc2:
+        r_pool = st.radio("Pool", ["Overall", "Per division"], horizontal=True,
+                          key="rep_gp_pool")
+    with gc3:
+        r_fish = st.toggle("Add work-rate (+1/fish)", value=False, key="rep_gp_fish")
+    pool = "division" if r_pool == "Per division" else "overall"
+    gp_tbl = gpmod.gp_standings(gp_scored, gp_anglers, gp_comp_order,
+                                drop_worst=r_drop, pool=pool, add_fish=r_fish)
+    st.dataframe(gp_tbl, use_container_width=True, hide_index=True, height=320)
+
+    rc1, rc2 = st.columns(2)
+    with rc1:
+        st.download_button(
+            "⬇ Download GP standings CSV",
+            gp_tbl.to_csv(index=False).encode(),
+            file_name=f"grand_prix_standings_{active}.csv",
+            mime="text/csv", key="rep_gp_csv")
+    with rc2:
+        gp_xlsx = io.BytesIO()
+        with pd.ExcelWriter(gp_xlsx, engine="openpyxl") as writer:
+            gp_tbl.to_excel(writer, sheet_name="GP Standings", index=False)
+            # one per-IC GP sheet too
+            for c in gp_comp_order:
+                t = gpmod.per_ic_table(gp_scored, gp_anglers, c, pool=pool, add_fish=r_fish)
+                if not t.empty:
+                    t.to_excel(writer, sheet_name=f"IC{c} GP"[:31], index=False)
+        st.download_button(
+            "⬇ Download GP workbook (XLSX)",
+            gp_xlsx.getvalue(),
+            file_name=f"grand_prix_{active}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="rep_gp_xlsx")
+
 # ── Master tracker ────────────────────────────────────────────────────────
 divider_label("Master league tracker")
 with st.container(border=True):
