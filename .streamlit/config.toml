@@ -1,0 +1,8 @@
+[theme]
+# Pin a light base so device/mobile dark-mode does not flip the background
+# (the app's custom CSS in theme.py assumes a light content area).
+base = "light"
+primaryColor = "#F59E0B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+textColor = "#1F2937"

@@ -333,17 +333,35 @@ def _component_css(t: dict[str, str]) -> str:
         overflow: hidden;
       }}
 
-      /* Form labels */
+      /* Form labels (incl. radio / checkbox / toggle captions) */
       .stSelectbox > label,
       .stTextInput > label,
       .stNumberInput > label,
       .stTextArea > label,
-      .stMultiSelect > label {{
+      .stMultiSelect > label,
+      .stRadio > label,
+      .stCheckbox > label,
+      .stToggle > label,
+      div[data-testid="stWidgetLabel"] label,
+      div[data-testid="stWidgetLabel"] p {{
         font-size: 0.74rem !important;
         font-weight: 600 !important;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: {t['section_heading']} !important;
+        opacity: 1 !important;
+      }}
+
+      /* Radio / toggle OPTION text (e.g. "Overall", "Per division", "Table") */
+      div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p,
+      .stCheckbox div[data-testid="stMarkdownContainer"] p,
+      .stRadio div[data-testid="stMarkdownContainer"] p {{
+        color: {t['body_text']} !important;
+        opacity: 1 !important;
+        font-weight: 500 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        font-size: 0.88rem !important;
       }}
 
       /* Download button — outlined style */
