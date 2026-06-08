@@ -76,9 +76,11 @@ with tab_theme:
                                index=0, key="theme_preset_pick")
     with col_a:
         if st.button("Apply preset", use_container_width=True):
-            ss._theme_draft = dict(PRESETS[preset])
+            chosen = dict(PRESETS[preset])
+            ss._theme_draft = chosen
+            save_theme(chosen)          # persist immediately so every page picks it up
             _clear_picker_state()
-            st.success(f"Loaded preset: {preset}. Click Save to persist.")
+            st.success(f"Applied preset: {preset}.")
             st.rerun()
 
     st.divider()

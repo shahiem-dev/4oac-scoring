@@ -146,8 +146,19 @@ def save_theme(theme: dict[str, str]) -> None:
 
 
 def reset_theme() -> None:
+    """Restore DEFAULT_THEME everywhere: Supabase row + local backup file."""
+    # Overwrite Supabase singleton with defaults so load_theme() returns defaults.
+    try:
+        from database import save_theme_db
+        save_theme_db(dict(DEFAULT_THEME))
+    except Exception:
+        pass
+    # Drop the local backup file too.
     if THEME_PATH.exists():
-        THEME_PATH.unlink()
+        try:
+            THEME_PATH.unlink()
+        except Exception:
+            pass
 
 
 # ---- CSS injection -------------------------------------------------------
