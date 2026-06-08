@@ -61,9 +61,13 @@ with tab_theme:
                "to every page (including charts) on save.")
 
     ss = st.session_state
+    ss.setdefault("_theme_picker_gen", 0)
 
-    def _clear_picker_state():
-        """Drop cached color_picker widget state so they re-init from `value=`."""
+    def _bump_pickers():
+        """Force every color_picker to remount with a fresh key, so the
+        `value=` arg (read from the freshly saved theme) is honoured and the
+        Fine-tune swatches visibly update to the new preset / default."""
+        ss._theme_picker_gen += 1
         for k in list(ss.keys()):
             if k.startswith("cp_"):
                 del ss[k]
@@ -83,7 +87,7 @@ with tab_theme:
             if not db_ok:
                 st.error(f"Supabase save failed — preset NOT persisted across pages: {err}")
                 st.stop()
-            _clear_picker_state()
+            _bump_pickers()
             st.success(f"Applied preset: {preset}.")
             st.rerun()
 
@@ -110,7 +114,7 @@ with tab_theme:
                     draft[k] = st.color_picker(
                         k.replace("_", " ").title(),
                         value=theme.get(k, DEFAULT_THEME[k]),
-                        key=f"cp_{k}",
+                        key=f"cp_{k}_{ss._theme_picker_gen}",
                     )
     # Carry over keys not exposed as pickers (none today, but defensive).
     for k, v in theme.items():
@@ -162,7 +166,7 @@ with tab_theme:
         if not db_ok:
             st.error(f"Supabase reset failed: {err}")
         else:
-            _clear_picker_state()
+            _bump_pickers()
             st.success("Theme reset to default.")
             st.rerun()
 
