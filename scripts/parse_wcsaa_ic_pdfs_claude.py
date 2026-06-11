@@ -164,13 +164,14 @@ Each row has: position, WP number, angler name ('Surname,Firstname(s)'), club, s
 
 # ── Extraction ───────────────────────────────────────────────────────────────
 
-def extract(client: anthropic.Anthropic, pdf_path: Path, prompt: str, schema: dict) -> dict:
-    """Send one PDF to Claude with a strict output schema; return parsed JSON."""
-    pdf_b64 = base64.standard_b64encode(pdf_path.read_bytes()).decode()
+def _extract_b64(client: anthropic.Anthropic, pdf_b64: str, prompt: str,
+                 schema: dict, label: str) -> dict:
+    """Send one PDF (base64) to Claude with a strict output schema."""
+    # No thinking: this is verbatim transcription — thinking tokens would
+    # eat the output budget on large Details PDFs.
     with client.messages.stream(
         model=MODEL,
         max_tokens=64000,
-        thinking={"type": "adaptive"},
         output_config={"format": {"type": "json_schema", "schema": schema}},
         messages=[{
             "role": "user",
@@ -189,9 +190,83 @@ def extract(client: anthropic.Anthropic, pdf_path: Path, prompt: str, schema: di
     ) as stream:
         msg = stream.get_final_message()
     if msg.stop_reason == "max_tokens":
-        raise RuntimeError(f"{pdf_path.name}: output truncated at max_tokens")
+        raise RuntimeError(f"{label}: output truncated at max_tokens")
     text = next(b.text for b in msg.content if b.type == "text")
     return json.loads(text)
+
+
+def extract(client: anthropic.Anthropic, pdf_path: Path, prompt: str, schema: dict) -> dict:
+    pdf_b64 = base64.standard_b64encode(pdf_path.read_bytes()).decode()
+    return _extract_b64(client, pdf_b64, prompt, schema, pdf_path.name)
+
+
+CHUNK_PAGES = 6
+
+def extract_details_chunked(client: anthropic.Anthropic, pdf_path: Path) -> dict:
+    """Extract a Details PDF in page chunks so no response exceeds the
+    output budget. Club context (TEAM headers) carries across chunk
+    boundaries via the previous chunk's last club."""
+    import io
+    import pypdf
+
+    rdr = pypdf.PdfReader(str(pdf_path))
+    n_pages = len(rdr.pages)
+    out: dict = {"date": "", "venue": "", "catches": []}
+    carry_club = ""
+
+    for start in range(0, n_pages, CHUNK_PAGES):
+        end = min(start + CHUNK_PAGES, n_pages)
+        writer = pypdf.PdfWriter()
+        chunk_txt = []
+        for p in range(start, end):
+            writer.add_page(rdr.pages[p])
+            chunk_txt.append(rdr.pages[p].extract_text() or "")
+        buf = io.BytesIO()
+        writer.write(buf)
+        chunk_b64 = base64.standard_b64encode(buf.getvalue()).decode()
+
+        # Ground-truth row count from raw text: counting WP-prefixed lines is
+        # reliable even where field-level regex parsing is not. Anchors the
+        # model against dropping repeats in runs of identical rows.
+        expected = len(re.findall(r"^WP\d{3,5}\s", "\n".join(chunk_txt), re.M))
+
+        prompt = DETAILS_PROMPT + (
+            f"\n\nThese pages contain EXACTLY {expected} catch rows (lines starting "
+            "with a WP number). Identical rows often repeat many times in a row - "
+            "every repeat is a separate fish and must be its own entry. Your "
+            f"catches array must have exactly {expected} items."
+        )
+        if start > 0:
+            prompt += (
+                f"\n\nThis document is pages {start + 1}-{end} of a larger PDF. "
+                "The header line may be absent - return empty strings for date/venue if so. "
+                f"Rows appearing BEFORE the first 'TEAM <CLUB>' header on these pages "
+                f"belong to the club '{carry_club}' (continued from the previous page)."
+            )
+
+        label = f"{pdf_path.name} p{start + 1}-{end}"
+        print(f"        chunk p{start + 1}-{end} (expect {expected}) ...", flush=True)
+        d = _extract_b64(client, chunk_b64, prompt, DETAILS_SCHEMA, label)
+        if len(d["catches"]) != expected:
+            print(f"        MISMATCH: got {len(d['catches'])}, retrying ...", flush=True)
+            d = _extract_b64(client, chunk_b64, prompt + (
+                f"\n\nIMPORTANT: a previous attempt returned {len(d['catches'])} rows "
+                f"instead of {expected}. Recount carefully - consecutive duplicate "
+                "rows are real, separate catches."
+            ), DETAILS_SCHEMA, label)
+            if len(d["catches"]) != expected:
+                print(f"        WARN: still {len(d['catches'])} != {expected} after retry",
+                      flush=True)
+
+        if d.get("date") and not out["date"]:
+            out["date"] = d["date"]
+        if d.get("venue") and not out["venue"]:
+            out["venue"] = d["venue"]
+        if d["catches"]:
+            carry_club = d["catches"][-1]["club"]
+        out["catches"].extend(d["catches"])
+
+    return out
 
 
 def _norm_wp(wp: str) -> str:
@@ -229,7 +304,7 @@ def run(ics: list[int]) -> None:
             continue
 
         print(f"  IC {n}: extracting Details ({details.name}) ...", flush=True)
-        d = extract(client, details, DETAILS_PROMPT, DETAILS_SCHEMA)
+        d = extract_details_chunked(client, details)
         competitions.append({"comp_id": n, "date": d["date"], "venue": d["venue"]})
         for c in d["catches"]:
             c["comp_id"] = n
