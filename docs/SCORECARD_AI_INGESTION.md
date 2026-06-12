@@ -457,8 +457,10 @@ blast-radius isolation).
 | **3 — Multi-version hardening** | Template registry fallback flow, species-alias admin UI, signature snippets (zone geometry), per-org keys/templates | as needed | Unknown-version cards degrade gracefully; new org onboarded by JSON only |
 
 **Decisions needed before Phase 1:**
-1. Length-based vs weight-based commit (scorecards record length; current scoring
-   uses weight) — what does a confirmed scorecard create in `catches_raw`?
+1. ~~Length vs weight commit~~ **RESOLVED (2026-06-12):** capture is always
+   species + length cm. A confirmed scorecard creates a `catches_raw` row with
+   species + length + fish-sex; the app converts length → weight (SASAA formula,
+   `scripts/scoring.py`) → points → GP. No scorecard redesign needed for GP.
 2. Confirm the fish-sex interpretation of MALE/FEMALE (Section 2.4).
 3. Which WhatsApp number/business account hosts this (4OAC bot's, or WCSAA's own)?
 4. Budget sign-off: ~$10–40/season WCSAA-only, or the multi-org scale.
