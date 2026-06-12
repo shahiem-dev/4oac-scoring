@@ -447,7 +447,40 @@ blast-radius isolation).
 4. Regression gate: a template/prompt change ships only if golden-set accuracy
    doesn't drop.
 
-## 12. Implementation roadmap
+## 12. Integrity & governance model (added 2026-06-12)
+
+**Principle: nobody types data, and nobody verifies their own club.** The AI is the
+neutral first reader; humans judge, they don't transcribe.
+
+Roles & flow:
+1. **Club rep** — photograph + upload own club's cards within a submission window
+   (e.g. 48h post-comp). No edit rights on extracted values. RLS by club. Sees own
+   club's submission statuses only.
+2. **Evidence chain** — original image immutable in Storage with content hash;
+   every catch row permanently references card image + extraction JSON + template
+   version. Duplicate image (hash) or duplicate angler+comp card auto-flagged.
+3. **AI + validators** — extraction and cross-checks as per Sections 5–7; the
+   scorer's queue is the flag list, not the full data set.
+4. **WCSAA scorer** — side-by-side verify; approve / correct-with-reason / query
+   back to rep (query thread logged). Scorer cannot be bypassed.
+5. **Finalization lock** — comp finalize freezes records; later changes only via
+   logged amendment (who/when/why/old/new).
+6. **Four-eyes exceptions** — scorer's own club's cards need a second approver or
+   spot-audit; record-class/trophy-deciding catches always require explicit human
+   sign-off regardless of confidence.
+
+Integrity analytics for the scorer (flags, never verdicts): species-length
+outliers, witness signing-frequency anomalies, out-of-session times, angler
+pattern deviation vs own history.
+
+Transparency: clubs see own card statuses; the signed, witnessed card image is the
+ruling artifact in any dispute; all scoring systems (current points, GP, future)
+recompute from the same immutable observations.
+
+This model is identical whether extraction runs via the $0 Claude Code batch flow
+or the automated API pipeline — only the "extract" trigger differs.
+
+## 13. Implementation roadmap
 
 | Phase | Scope | Effort | Exit criteria |
 |---|---|---|---|
