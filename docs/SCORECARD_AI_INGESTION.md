@@ -1,7 +1,7 @@
 # WCSAA Scorecard AI Ingestion — Architecture & Implementation Plan
 
-**Status:** design — no code built yet
-**Author:** Claude (with Shahiem), 2026-06-12
+**Status:** design — template registry built (`config/scorecard_templates.json`, 2026-06-25); no pipeline code yet
+**Author:** Claude (with Shahiem), 2026-06-12 (updated 2026-06-25)
 **Inputs:** 3 sample scorecard photos (Ver Oct 2023, Ver Oct 2024, Ver Sept 2025) — see
 `raw/notes/wcsaa-scorecard-samples-2026-06-12.md` in the second brain.
 
@@ -169,8 +169,12 @@ Design principles:
 
 ## 5. Template registry (JSON)
 
-Stored in repo at `config/scorecard_templates.json`; loaded by the extraction
-function; one entry per form version. Zones are *semantic regions described to the
+Stored in repo at `config/scorecard_templates.json` (**built 2026-06-25** — all
+three versions + UNKNOWN fallback, validated); loaded by the extraction
+function; one entry per form version. The version drift is encoded as a
+base entry (`WCSAA_2025_09`) with `diff_from` + `overrides` on the older two:
+2024/2023 drop `U/13 ASSISTED` and label the witness column `WITNESS WCSAA No.`
+(renamed to `WP No.` in 2025). Zones are *semantic regions described to the
 model*, with optional crop boxes (fractions of corrected image) used to send
 higher-DPI crops for the header and table separately when full-card accuracy is
 insufficient.

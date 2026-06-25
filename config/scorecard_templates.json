@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "purpose": "Version-keyed template registry for the WCSAA Scorecard AI Ingestion engine. One entry per physical scorecard form version. Loaded by the extraction function (docs/SCORECARD_AI_INGESTION.md §5). New form version = new entry here — no retraining, no code change.",
+    "schema_version": 1,
+    "created": "2026-06-25",
+    "source": "docs/SCORECARD_AI_INGESTION.md §5 + raw/notes/wcsaa-scorecard-samples-2026-06-12.md",
+    "species_lexicon_source": "data/species_master.csv (canonical) + data/species_aliases.json (written->canonical). The doc recommends migrating aliases to a secretary-editable DB table before Phase 2; this file references the lexicon, it does not duplicate it.",
+    "card_columns_in_order": ["row_no", "species", "length_cm", "length_words", "fish_sex", "witness_wp", "witness_sign_present", "time"],
+    "notes": [
+      "witness_sign_present is presence-only — never OCR the signature.",
+      "fish_sex is the FISH's sex (MALE/FEMALE column), NOT the witness's — confirmed against existing season data (doc §2.4).",
+      "Blank table rows are omitted, not emitted as empty objects.",
+      "Confidence is computed by the deterministic validators (doc §6-7), not taken from the model's self-score."
+    ]
+  },
+  "templates": [
+    {
+      "template_id": "WCSAA_2025_09",
+      "label": "Ver Sept 2025",
+      "match": { "version_text": ["Ver. Sept 2025", "Ver Sept 2025", "Sept 2025"] },
+      "header_fields": [
+        { "name": "wp_number",   "zone": "top-left box labelled 'WP #'", "type": "string", "pattern": "^\\d{1,5}$" },
+        { "name": "angler_name", "zone": "box labelled 'Initial(s) / Surname'", "type": "string" },
+        { "name": "date",        "zone": "box labelled 'DATE'", "type": "date" },
+        { "name": "club",        "zone": "CLUB row of boxes", "type": "selection",
+          "options": ["BR", "FB", "4/Oc", "GW", "POL", "2/Oc", "TB"],
+          "mark_styles": ["circle", "tick", "cross", "shading"] },
+        { "name": "division",    "zone": "DIVISION row of boxes", "type": "selection",
+          "options": ["U/13 ASSISTED", "U/16", "U/21", "LADY", "SENIOR", "MASTER", "G/MASTER"],
+          "mark_styles": ["circle", "tick", "cross", "shading"] }
+      ],
+      "table": {
+        "max_rows": 11,
+        "columns": ["row_no", "species", "length_cm", "length_words", "fish_sex", "witness_wp", "witness_sign_present", "time"],
+        "column_labels": {
+          "species": "SPECIE",
+          "length_cm": "LENGTH CM",
+          "length_words": "LENGTH IN WORDS",
+          "fish_sex": "MALE/FEMALE",
+          "witness_wp": "WITNESS WP No.",
+          "witness_sign_present": "WITNESS SIGN",
+          "time": "TIME"
+        },
+        "notes": "Blank rows allowed and must be omitted; witness_sign is presence-only, never OCR'd. Times appear in mixed formats (8.40, 9 am, 9:20, 10h40, 1:30PM, 358) — normalize in code, not the model."
+      },
+      "crop_zones": {
+        "header": [0.0, 0.0, 1.0, 0.30],
+        "table":  [0.0, 0.25, 1.0, 1.0]
+      }
+    },
+    {
+      "template_id": "WCSAA_2024_10",
+      "label": "Ver Oct 2024",
+      "match": { "version_text": ["Ver. Oct 2024", "Ver Oct 2024", "Oct 2024"] },
+      "diff_from": "WCSAA_2025_09",
+      "overrides": {
+        "division.options": ["U/16", "U/21", "LADY", "SENIOR", "MASTER", "G/MASTER"],
+        "table.column_labels.witness_wp": "WITNESS WCSAA No.",
+        "table.max_rows": 10
+      },
+      "notes": "Identical layout to Sept 2025 EXCEPT: no U/13 ASSISTED division, and the witness column is labelled 'WITNESS WCSAA No.' (renamed to 'WP No.' in 2025)."
+    },
+    {
+      "template_id": "WCSAA_2023_10",
+      "label": "Ver Oct 2023",
+      "match": { "version_text": ["Ver. Oct 2023", "Ver Oct 2023", "Oct 2023"] },
+      "diff_from": "WCSAA_2024_10",
+      "overrides": {},
+      "notes": "Same fields as Oct 2024 (witness column 'WITNESS WCSAA No.', no U/13 ASSISTED). Earliest known version; cards are often the most worn/creased — preprocessing tolerance matters most here."
+    }
+  ],
+  "fallback": {
+    "template_id": "UNKNOWN",
+    "behavior": "Extract best-effort using the WCSAA_2025_09 field set, force review_required=true on every field, and alert an admin to add a template entry. Never auto-commit an UNKNOWN-version card."
+  }
+}
