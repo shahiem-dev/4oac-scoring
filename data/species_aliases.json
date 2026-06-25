@@ -1,6 +1,13 @@
 {
-  "_comment": "Maps the species name as written on catch sheets -> canonical name in species_master.csv. Confirmed 2026-04-28.",
+  "_comment": "Maps the species name as written on catch sheets -> canonical name in species_master.csv. Confirmed 2026-04-28. Beach-shorthand block (uppercase, as written on WCSAA scorecards) added 2026-06-25 — verified against species_master. Matching is CASE-SENSITIVE exact (scripts/scoring.py): the written string must match an alias key exactly. For species that exist in the master ONLY as (M)/(F) entries, the alias maps to the sexless BASE and the scorer reattaches gender from a trailing (M)/(F) — so those MUST be written with the fish sex, e.g. 'RAGGIE (F)'. The three below are sexless in the master and resolve without a sex suffix.",
   "aliases": {
+    "COW": "Shark (Cow) (Sevengill)",
+    "COWSHARK": "Shark (Cow) (Sevengill)",
+    "COW SHARK": "Shark (Cow) (Sevengill)",
+    "SANDY": "Guitarfish (Bluntnose)",
+    "SANDY SHARK": "Guitarfish (Bluntnose)",
+    "SAND SHARK": "Guitarfish (Bluntnose)",
+    "EAGLE RAY": "Ray (Eagle)",
     "Baardman (Belman)": "Baardman",
     "Elephant Fish/St Joseph": "Elephant Fish / St Joseph",
     "Elf/Shad": "Elf / Shad",

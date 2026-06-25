@@ -235,6 +235,23 @@ New form version = new JSON entry. No retraining, no code change.
 
 ## 6. Validation engines (deterministic, post-extraction)
 
+### 6.0 Row completeness gate (MANDATORY — locked 2026-06-25)
+Every catch row that contains **any** data must carry **all** of the following or
+it is `review_required` (never auto-accepted). These are hard gates, not soft hints:
+
+| Field | Rule | Fail action |
+|---|---|---|
+| `species` | Must resolve to a canonical species via the lexicon (beach shorthand accepted — §6.2). Free text never passes. | review |
+| `length_cm` | Present, numeric, within the species sanity band (§6.1). | review |
+| `length_words` | **Must be completed** and must cross-check `length_cm` (§6.1). A row with a number but no words → review. | review |
+| `fish_sex` | `M` or `F`. Required — and load-bearing for sexed species, where it selects the canonical `(M)`/`(F)` entry (§6.2). | review |
+| `witness_wp` | **Must validate against the `anglers` roster** (exists; zero-padded `WP####`) and differ from the angler (§6.4). | review |
+| `witness_sign_present` | **Must be `true` for every populated row.** A data row with no witness signature is invalid evidence → flag (do not commit). | review |
+| `time` | **Must be present and parse** to `HH:mm` (§6.5). | review |
+
+A row is auto-accept-eligible only when all seven pass *and* their confidences clear
+the §7 threshold. Blank rows are omitted entirely (not gated).
+
 ### 6.1 Length cross-validation — the workhorse
 Parse `length_words` ("ONE THREE FOUR", "NINTY EIGHT", "SEVENTY ONE") with a
 number-word grammar that accepts both digit-naming ("ONE ZERO SEVEN" → 107) and
@@ -262,8 +279,22 @@ scoring) plus colloquial aliases:
 Match = normalized Levenshtein / token-set ratio against lexicon + aliases;
 confidence = scaled similarity. Below threshold (≈85) → review. **Important:** the
 alias table is club-confirmable data, not code — store it in the DB so the league
-secretary can extend it without a deploy. The fish-sex column (M/F) is appended to
-the canonical name where the species is sexed in the existing data (`(M)`/`(F)`).
+secretary can extend it without a deploy.
+
+**Beach shorthand is supported (locked 2026-06-25).** Anglers write colloquial
+shorthand ("COW", "SANDY", "EAGLE RAY") and the lexicon must resolve it — free text
+never reaches the scorer. The first three are seeded in `data/species_aliases.json`
+(verified against `species_master.csv`); the matcher in `scripts/scoring.py` is
+**case-sensitive exact** on the alias key.
+
+**fish_sex is load-bearing, not cosmetic.** Some species exist in `species_master.csv`
+*only* as `(M)`/`(F)` rows (e.g. Ragged-tooth, Smooth-hound) with **different weight
+coefficients per sex** — there is no sexless entry. For these the canonical cannot be
+resolved without the M/F, so the pipeline appends the captured `fish_sex` to the
+species string (`RAGGIE` + `F` → `"RAGGIE (F)"`); the scorer strips the suffix,
+resolves the base alias, and reattaches the sex if `"<canon> (F)"` exists in the
+master (`scoring.py` `resolve()` steps 3–4). A sexed-species row with a missing/blank
+M/F therefore **fails the §6.0 gate** rather than risking a wrong-coefficient score.
 
 ### 6.3 Club / division selection
 The model reports `{selected, mark_style, alternatives_marked}` per selection row.
@@ -271,21 +302,26 @@ Validator rules: exactly one mark → accept (confidence from model's mark clari
 zero or multiple marks → review. Cross-check: angler WP number's club in the roster
 should equal the marked club — disagreement flags *both* fields.
 
-### 6.4 Witness validation
-- `witness_wp` must exist in the `anglers` roster → DB lookup (zero-pad to WP####).
-- Witness must differ from the angler.
-- Signature: presence detection only (`witness_sign_present: true/false`). v1
-  stores the full corrected card image and the row index; cropped signature
-  snippets are a v2 nicety requiring row-geometry detection — explicitly out of
-  scope for v1 (honest scope: precise per-row pixel crops from bent cards is the
-  least reliable part of any design).
+### 6.4 Witness validation (MANDATORY per row — locked 2026-06-25)
+- `witness_wp` **must exist in the `anglers` roster** → DB lookup (zero-pad to WP####).
+  Not found → review. This is a hard requirement on every populated row, not a
+  best-effort check.
+- Witness must differ from the angler (a card cannot witness itself).
+- `witness_sign_present` **must be `true` for every row that has catch data.** The
+  signature is the evidentiary core of the card — a populated row with no witness
+  signature is invalid and must not be committed; flag to review/reject.
+- Signature *content*: presence detection only (`witness_sign_present: true/false`).
+  v1 stores the full corrected card image + row index; cropped signature snippets are
+  a v2 nicety requiring row-geometry detection — out of scope for v1 (precise per-row
+  pixel crops from bent cards is the least reliable part of any design).
 
-### 6.5 Time normalization
-Deterministic parser for the observed zoo: `8.40`, `8:40`, `9 am`, `1:30PM`,
-`10h40`, `358` (= 3:58), bare `329`. Rules: strip spaces/dots → try HH:mm, HhMM,
-H:mm AM/PM, 3-4 digit packed; afternoon inference from row order (times must be
-non-decreasing down the card — a monotonicity check that also catches misreads).
-Output `HH:mm` 24h. Unparseable → review.
+### 6.5 Time normalization (MANDATORY per row — locked 2026-06-25)
+`time` **must be present and parse** on every populated row — a data row with no
+time fails the §6.0 gate. Deterministic parser for the observed zoo: `8.40`, `8:40`,
+`9 am`, `1:30PM`, `10h40`, `358` (= 3:58), bare `329`. Rules: strip spaces/dots → try
+HH:mm, HhMM, H:mm AM/PM, 3-4 digit packed; afternoon inference from row order (times
+must be non-decreasing down the card — a monotonicity check that also catches
+misreads). Output `HH:mm` 24h. Missing or unparseable → review.
 
 ### 6.6 Header checks
 - `wp_number` exists in roster; extracted `angler_name` fuzzy-matches the roster
@@ -380,11 +416,28 @@ create table species_aliases (              -- secretary-editable, drives fuzzy 
 -- RLS enabled on all three (service_role only), consistent with 2026-06-11 hardening.
 ```
 
-**Commit step:** on confirm, rows map into the existing `catches_raw` shape
-(`comp_id` resolved from `comp_date` vs `competitions`; weight left to the
-weigh-in flow — scorecards record length, the existing scoring uses weight, so
-commit either targets a length-based comp format or stages for the weigh-master;
-this is a league-rules decision to confirm before Phase 1).
+**Commit contract (resolved 2026-06-25).** The existing `catches_raw` table has only
+**four columns** — `["comp_id", "wp_no", "species_raw", "length_cm"]` (`app_lib.py`
+`DEFAULT_CATCH_COLS`); `save_catches_raw()` drops everything else and `rescore_all()`
+re-derives canonical species, weight (SASAA length→weight), edible, and points. So on
+confirm, each gated row maps as:
+
+| scorecard_catches field | → catches_raw | mapping |
+|---|---|---|
+| header `wp_number` | `wp_no` | one header WP applies to all rows; zero-pad `WP####` |
+| `comp_date` → `competitions` (or admin-selected IC) | `comp_id` | e.g. "IC 8" |
+| `species` (+ `fish_sex` for sexed species) | `species_raw` | write the alias/canonical string incl. `(M)`/`(F)` so the scorer resolves it |
+| `length_cm` | `length_cm` | numeric cm |
+
+The other **mandatory §6.0 fields — `length_words`, `fish_sex` (when sexless),
+`witness_wp`, `witness_sign_present`, `time` — are NOT promoted into `catches_raw`;
+they live in `scorecard_catches`** (the staging table above) as the permanent evidence
++ audit record, and they **gate** the promotion (a row that fails §6.0 never reaches
+`catches_raw`). In the zero-cost PoC (§14) `scorecard_catches` is a **local JSON/CSV
+sidecar** rather than a Supabase table — same fields, same gate, no DB change.
+
+No scorecard redesign or weigh-in branch is needed: capture is species + length, the
+app derives weight/points/GP (Decision 1, §13).
 
 ---
 
