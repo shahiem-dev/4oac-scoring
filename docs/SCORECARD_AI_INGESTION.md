@@ -1,6 +1,6 @@
 # WCSAA Scorecard AI Ingestion — Architecture & Implementation Plan
 
-**Status:** design — template registry built (`config/scorecard_templates.json`, 2026-06-25); no pipeline code yet
+**Status:** design locked → **zero-cost PoC** is the active path (Section 14, 2026-06-25). Template registry built (`config/scorecard_templates.json`). All §13 decisions resolved: capture = species + length; fish-sex M/F; **no WhatsApp**; **no paid budget** (Claude Code batch extraction, $0). Next concrete step: golden set (needs real card images). No pipeline code yet.
 **Author:** Claude (with Shahiem), 2026-06-12 (updated 2026-06-25)
 **Inputs:** 3 sample scorecard photos (Ver Oct 2023, Ver Oct 2024, Ver Sept 2025) — see
 `raw/notes/wcsaa-scorecard-samples-2026-06-12.md` in the second brain.
@@ -493,11 +493,56 @@ or the automated API pipeline — only the "extract" trigger differs.
 | **2 — WhatsApp loop** | `scorecard-webhook`, CONFIRM/CORRECT state machine, MSISDN↔WP mapping, spend caps | 2–3 sessions | Angler submits + confirms from the beach |
 | **3 — Multi-version hardening** | Template registry fallback flow, species-alias admin UI, signature snippets (zone geometry), per-org keys/templates | as needed | Unknown-version cards degrade gracefully; new org onboarded by JSON only |
 
-**Decisions needed before Phase 1:**
+**Decisions — all resolved (2026-06-25):**
 1. ~~Length vs weight commit~~ **RESOLVED (2026-06-12):** capture is always
    species + length cm. A confirmed scorecard creates a `catches_raw` row with
    species + length + fish-sex; the app converts length → weight (SASAA formula,
    `scripts/scoring.py`) → points → GP. No scorecard redesign needed for GP.
-2. Confirm the fish-sex interpretation of MALE/FEMALE (Section 2.4).
-3. Which WhatsApp number/business account hosts this (4OAC bot's, or WCSAA's own)?
-4. Budget sign-off: ~$10–40/season WCSAA-only, or the multi-org scale.
+2. ~~Fish-sex interpretation of MALE/FEMALE~~ **RESOLVED (2026-06-25):** confirmed —
+   the column is the **fish's** sex, `M` = Male, `F` = Female. Schema field `fish_sex`
+   (Section 2.4, Section 8) is correct as written; the spec's "Witness Gender" label
+   was a misreading.
+3. ~~WhatsApp host~~ **RESOLVED (2026-06-25):** **no WhatsApp for the PoC.** Phase 2
+   (the `scorecard-webhook` + CONFIRM/CORRECT state machine) is deferred indefinitely.
+   The active path is **Streamlit upload + admin review only**.
+4. ~~Budget sign-off~~ **RESOLVED (2026-06-25):** **no paid budget approved — build a
+   zero-cost / free-tier PoC.** See Section 14. Extraction runs via the **Claude Code
+   batch flow** ($0 — no Anthropic API spend), not Supabase Edge Functions + paid API.
+   The paid API pipeline (Sections 9–10) is the documented *future* upgrade once the
+   PoC proves value and budget is signed off.
+
+## 14. Zero-cost PoC plan (active path, 2026-06-25)
+
+Constraints locked: **no paid API budget, no WhatsApp.** This narrows the active build
+to the cheapest credible slice that still proves the core thesis — *can AI read these
+cards accurately enough to cut manual capture?* — without spending a cent on inference
+or new infrastructure.
+
+**What changes vs the full design:**
+
+| Concern | Full design (Sections 4–10) | Zero-cost PoC (this section) |
+|---|---|---|
+| Extraction trigger | Supabase Edge Function calling Anthropic API ($0.01–0.05/card) | **Claude Code batch flow** — admin drops card images in a folder; Claude Code reads them against `config/scorecard_templates.json` and emits the JSON. $0. |
+| Inference cost | ~$8–40/season | **$0** (uses existing Claude Code session) |
+| Hosting | Edge Functions + webhook | None new — runs locally / in the existing Streamlit app |
+| WhatsApp loop | Phase 2 | **Cut** |
+| Storage / staging tables | Supabase (shared prod project) | **Local first** — golden set + extraction JSON live in the repo (`scripts/`, `data/`), nothing written to Supabase until accuracy is proven |
+| Validators (Section 6) | unchanged | unchanged — pure Python, no cost |
+| Review UI | Streamlit Review queue | unchanged (built in Phase 1) |
+
+**Why this is legitimate, not a toy:** Section 12 already states the integrity model is
+*identical* whether extraction runs via the $0 Claude Code flow or the paid API — only
+the trigger differs. The template registry, validators, confidence framework, schema,
+and review UI are all reused verbatim when/if the paid pipeline is funded later.
+
+**Zero-cost roadmap (supersedes the table in Section 13 for now):**
+
+| Step | Scope | Cost | Exit criteria |
+|---|---|---|---|
+| **0 — Golden set** | Shahiem supplies 30–50 real card photos across the 3 versions; hand-label into the output JSON | $0 | Labelled set committed under `data/scorecard_golden/` |
+| **1 — PoC extractor** | `scripts/scorecard_poc.py`: load a card image → (Claude Code reads it against the registry) → write extraction JSON → run the Section 6 validators → print accuracy vs golden labels | $0 | ≥95% field accuracy measured on the golden set |
+| **2 — Streamlit review** | Admin "Scorecard Review" page: upload image, see extracted+validated fields, correct flagged ones, commit confirmed catches to local staging | $0 | Admin commits a validated card end-to-end, no API |
+| **Later (funded)** | Promote extraction to the paid API + Edge Functions; add the WhatsApp loop | budget | only after PoC proves value |
+
+The blocker for Step 0 is real card images — the originals shared on 2026-06-12 were
+not retained (only text descriptions in `raw/notes/wcsaa-scorecard-samples-2026-06-12.md`).
